@@ -4,6 +4,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+import com.utfpr.integracao.course_api.student.api.dto.StudentRequestDto;
+import com.utfpr.integracao.course_api.student.api.dto.StudentResponseDto;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
