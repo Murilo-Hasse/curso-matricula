@@ -1,7 +1,6 @@
 package com.utfpr.integracao.course_api.registration.api;
 import java.net.URI;
 import java.util.List;
-import java.util.UUID;
 
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -27,7 +26,7 @@ public class RegistrationController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<RegistrationResponseDto> findById(@PathVariable UUID id) {
+    public ResponseEntity<RegistrationResponseDto> findById(@PathVariable Long id) {
 
         return ResponseEntity.ok(new RegistrationResponseDto());
     }
@@ -35,7 +34,7 @@ public class RegistrationController {
     @PostMapping
     public ResponseEntity<RegistrationResponseDto> save(@Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
 
-        UUID id = UUID.randomUUID();
+        Long id = 0L;
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -45,7 +44,7 @@ public class RegistrationController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<RegistrationResponseDto> update(@PathVariable UUID id,
+    public ResponseEntity<RegistrationResponseDto> update(@PathVariable Long id,
                                                @RequestBody RegistrationRequestDto registrationRequestDto) {
 
         URI location = ServletUriComponentsBuilder
@@ -57,7 +56,7 @@ public class RegistrationController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         return ResponseEntity.noContent().build();
     }
 }
