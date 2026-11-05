@@ -4,6 +4,7 @@ import com.utfpr.integracao.course_api.exception.MatriculaEmCursoInativoExceptio
 import com.utfpr.integracao.course_api.exception.MatriculaNaoEncontradaException;
 import com.utfpr.integracao.course_api.registration.data.Registration;
 import com.utfpr.integracao.course_api.registration.repository.RegistrationRepository;
+import com.utfpr.integracao.course_api.student.data.Student;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,5 +41,16 @@ public class RegistrationService {
         Registration registration = this.getById(id); // Para ter validacao
 
         repository.delete(registration);
+    }
+
+    public Registration updateById(Long id, Registration registrationUpdateObj) {
+        Registration registration = this.getById(id); //Validacao + pegar o que está no banco
+
+        registration.setAluno(registrationUpdateObj.getAluno());
+        registration.setCurso(registrationUpdateObj.getCurso());
+        registration.setStatus(registrationUpdateObj.getStatus());
+        registration.setDataMatricula(registrationUpdateObj.getDataMatricula());
+
+        return this.repository.save(registration);
     }
 }

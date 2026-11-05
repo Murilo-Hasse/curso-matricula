@@ -71,12 +71,17 @@ public class RegistrationController {
     public ResponseEntity<RegistrationResponseDto> update(@PathVariable Long id,
                                                @Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
 
+        Student student = studentService.getById(registrationRequestDto.aluno());
+        CourseEntity course = CourseMapper.toEntity(courseService.getById(registrationRequestDto.curso()));
+
+        Registration updatedRegistration = service.updateById(id, mapper.toEntity(registrationRequestDto, student, course));
+
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(id)
+                .buildAndExpand(updatedRegistration.getId())
                 .toUri();
-        return ResponseEntity.created(location).body(new RegistrationResponseDto());
+        return ResponseEntity.created(location).body(mapper.toDto(updatedRegistration));
     }
 
     @DeleteMapping("/{id}")
