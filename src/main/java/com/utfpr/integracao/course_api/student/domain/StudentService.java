@@ -35,4 +35,15 @@ public class StudentService {
 
         repository.delete(student);
     }
+
+    public Student updateById(Long id, Student studentUpdObj) {
+        Student student = this.getFromId(id); //Validacao + pegar o que está no banco
+
+        student.setNome(studentUpdObj.getNome());
+        student.setEmail(studentUpdObj.getEmail());
+        student.setIdade(studentUpdObj.getIdade());
+        student.setTelefone(studentUpdObj.getTelefone());
+
+        return this.repository.save(student);
+    }
 }

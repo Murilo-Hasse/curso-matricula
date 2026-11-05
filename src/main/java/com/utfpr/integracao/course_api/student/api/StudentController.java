@@ -52,16 +52,13 @@ public class StudentController {
         return ResponseEntity.created(location).body(createdStudentResponseDto);
     }
 
-//    @PutMapping("/{id}")
-//    public ResponseEntity<StudentResponseDto> update(@PathVariable UUID id, @RequestBody StudentRequestDto studentRequestDto) {
-//
-//        URI location = ServletUriComponentsBuilder
-//                .fromCurrentRequest()
-//                .path("/{id}")
-//                .buildAndExpand(id)
-//                .toUri();
-//        return ResponseEntity.created(location).body(new StudentResponseDto());
-//    }
+    @PutMapping("/{id}")
+    public ResponseEntity<StudentResponseDto> update(@PathVariable Long id, @Valid @RequestBody StudentRequestDto studentRequestDto) {
+
+        Student updatedStudent = this.service.updateById(id, this.mapper.toEntity(studentRequestDto));
+
+        return ResponseEntity.ok(this.mapper.toDto(updatedStudent));
+    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
