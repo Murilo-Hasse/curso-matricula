@@ -2,7 +2,6 @@ package com.utfpr.integracao.course_api.course.api;
 
 import java.net.URI;
 import java.util.List;
-import java.util.UUID;
 
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -28,7 +27,7 @@ public class CourseController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CourseResponseDto> findById(@PathVariable UUID id) {
+    public ResponseEntity<CourseResponseDto> findById(@PathVariable Long id) {
 
         return ResponseEntity.ok(new CourseResponseDto());
     }
@@ -36,7 +35,7 @@ public class CourseController {
     @PostMapping
     public ResponseEntity<CourseResponseDto> save(@Valid @RequestBody CourseRequestDto courseRequestDto) {
 
-        UUID id = UUID.randomUUID();
+        Long id = 0L;
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -46,7 +45,7 @@ public class CourseController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CourseResponseDto> update(@PathVariable UUID id,
+    public ResponseEntity<CourseResponseDto> update(@PathVariable Long id,
                                                      @RequestBody CourseRequestDto courseRequestDto) {
 
         URI location = ServletUriComponentsBuilder
@@ -58,7 +57,7 @@ public class CourseController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         return ResponseEntity.noContent().build();
     }
 }
