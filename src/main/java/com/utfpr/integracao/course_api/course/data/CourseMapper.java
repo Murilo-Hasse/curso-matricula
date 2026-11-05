@@ -8,6 +8,7 @@ public class CourseMapper {
     public static CourseEntity toEntity(Course course) {
 
         return CourseEntity.builder()
+                .id(course.getId())
                 .nome(course.getNome())
                 .cargaHoraria(course.getCargaHoraria())
                 .categoria(course.getCategoria())

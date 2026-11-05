@@ -5,7 +5,7 @@ import lombok.Data;
 
 @AllArgsConstructor
 @Data
-public class ErroNaoEncontrado {
+public class ErroGenerico {
     String titulo;
 
     Integer status;

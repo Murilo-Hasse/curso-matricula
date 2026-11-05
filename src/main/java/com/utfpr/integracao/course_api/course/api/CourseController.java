@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/courses")
+@RequestMapping("/cursos")
 public class CourseController {
 
     private final CourseService service;
@@ -35,7 +35,7 @@ public class CourseController {
     @GetMapping("/{id}")
     public ResponseEntity<CourseResponseDto> findById(@PathVariable Long id) {
 
-        return ResponseEntity.ok(CourseMapper.toResponseDto(service.findById(id)));
+        return ResponseEntity.ok(CourseMapper.toResponseDto(service.getById(id)));
     }
 
     @PostMapping
@@ -52,20 +52,15 @@ public class CourseController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CourseResponseDto> update(@PathVariable Long id, @RequestBody CourseRequestDto courseRequestDto) {
+    public ResponseEntity<CourseResponseDto> update(@PathVariable Long id, @Valid @RequestBody CourseRequestDto courseRequestDto) {
 
-        URI location = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(id)
-                .toUri();
-        return ResponseEntity.created(location).body(CourseMapper.toResponseDto(service.save(CourseMapper.toDomain(courseRequestDto))));
+        return ResponseEntity.ok(CourseMapper.toResponseDto(service.updateById(id, CourseMapper.toDomain(courseRequestDto, id))));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
 
-        service.delete(id);
+        service.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 }

@@ -6,13 +6,18 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CourseRequestDto(
+        @NotBlank(message = "Nome obrigatório.")
         @Size(min = 5, max = 127, message = "O nome deve ter entre 5 e 127 caracteres.")
         String nome,
-        @Min(value = 1)
+
+        @NotNull(message = "Carga horária obrigatória.")
+        @Min(value = 1, message = "A carga horária deve ser de no mínimo 1 hora.")
         Integer cargaHoraria,
-        @NotBlank
+
+        @NotBlank(message = "Categoria obrigatória.")
         String categoria,
-        @NotNull
+
+        @NotNull(message = "Status de ativo obrigatório.")
         Boolean ativo
 ) {
 

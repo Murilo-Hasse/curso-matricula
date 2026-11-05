@@ -1,5 +1,9 @@
 package com.utfpr.integracao.course_api.course.domain;
 
+import java.util.List;
+
+import com.utfpr.integracao.course_api.registration.domain.Registration;
+
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,4 +22,6 @@ public class Course {
     private String categoria;
 
     private Boolean ativo;
+
+    private List<Registration> matriculas;
 }
