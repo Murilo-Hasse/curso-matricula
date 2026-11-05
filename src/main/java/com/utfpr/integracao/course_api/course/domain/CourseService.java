@@ -1,8 +1,10 @@
 package com.utfpr.integracao.course_api.course.domain;
 
+import com.utfpr.integracao.course_api.course.data.CourseEntity;
 import com.utfpr.integracao.course_api.course.data.CourseMapper;
 import com.utfpr.integracao.course_api.course.data.CourseRepository;
 import com.utfpr.integracao.course_api.exception.CourseNotFound;
+import com.utfpr.integracao.course_api.exception.ExclusaoAlunoComMatriculaException;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

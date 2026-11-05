@@ -1,6 +1,7 @@
 package com.utfpr.integracao.course_api.student.domain;
 
 import com.utfpr.integracao.course_api.exception.AlunoNaoEncontradoException;
+import com.utfpr.integracao.course_api.exception.ExclusaoAlunoComMatriculaException;
 import com.utfpr.integracao.course_api.student.data.Student;
 import com.utfpr.integracao.course_api.student.data.StudentRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,10 @@ public class StudentService {
 
     public void deleteById(Long id) {
         Student student = this.getById(id); // Para ter validacao
+
+        if(!student.getMatriculas().isEmpty()) {
+            throw new ExclusaoAlunoComMatriculaException("Não é possível deletar aluno com matriculas ativas");
+        }
 
         repository.delete(student);
     }
