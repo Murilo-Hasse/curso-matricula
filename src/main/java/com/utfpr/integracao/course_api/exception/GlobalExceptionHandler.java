@@ -1,7 +1,6 @@
 package com.utfpr.integracao.course_api.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -17,6 +16,16 @@ public class GlobalExceptionHandler {
                                                                       HttpServletRequest request) {
 
         ErroNaoEncontrado error = new ErroNaoEncontrado("Aluno não encontrado", HttpStatus.NOT_FOUND.value(),
+                ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(CourseNotFound.class)
+    public ResponseEntity<ErroNaoEncontrado> tratarLivroNaoEncontrado(CourseNotFound ex,
+                                                                      HttpServletRequest request) {
+
+        ErroNaoEncontrado error = new ErroNaoEncontrado("Curso não encontrado", HttpStatus.NOT_FOUND.value(),
                 ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
