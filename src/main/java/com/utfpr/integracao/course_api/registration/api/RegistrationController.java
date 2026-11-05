@@ -1,6 +1,6 @@
 package com.utfpr.integracao.course_api.registration.api;
+
 import java.net.URI;
-import java.util.List;
 
 import com.utfpr.integracao.course_api.course.data.CourseEntity;
 import com.utfpr.integracao.course_api.course.data.CourseMapper;
@@ -10,11 +10,9 @@ import com.utfpr.integracao.course_api.registration.api.dto.RegistrationResponse
 import com.utfpr.integracao.course_api.registration.api.mapper.RegistrationApiMapper;
 import com.utfpr.integracao.course_api.registration.data.Registration;
 import com.utfpr.integracao.course_api.registration.domain.RegistrationService;
-import com.utfpr.integracao.course_api.student.api.dto.StudentResponseDto;
-import com.utfpr.integracao.course_api.student.data.Student;
+import com.utfpr.integracao.course_api.student.domain.Student;
 import com.utfpr.integracao.course_api.student.domain.StudentService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import lombok.RequiredArgsConstructor;
+
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/matriculas")
@@ -40,6 +40,7 @@ public class RegistrationController {
 
     @GetMapping
     public ResponseEntity<Page<RegistrationResponseDto>> findAll(Pageable pageable) {
+
         Page<RegistrationResponseDto> allRegistrations = mapper.toDto(service.getAll(pageable));
 
         return ResponseEntity.ok(allRegistrations);
@@ -69,18 +70,25 @@ public class RegistrationController {
 
     @PutMapping("/{id}")
     public ResponseEntity<RegistrationResponseDto> update(@PathVariable Long id,
-                                               @Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
+                                                          @Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
+
+        Student student = studentService.getById(registrationRequestDto.aluno());
+        CourseEntity course = CourseMapper.toEntity(courseService.getById(registrationRequestDto.curso()));
+
+        Registration updatedRegistration = service.updateById(id, mapper.toEntity(registrationRequestDto, student, course));
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(id)
+                .buildAndExpand(updatedRegistration.getId())
                 .toUri();
-        return ResponseEntity.created(location).body(new RegistrationResponseDto());
+        return ResponseEntity.created(location).body(mapper.toDto(updatedRegistration));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+
+        this.service.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 }

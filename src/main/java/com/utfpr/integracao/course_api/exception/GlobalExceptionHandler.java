@@ -41,11 +41,31 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
-    @ExceptionHandler(CourseNotFound.class)
+    @ExceptionHandler(MatriculaEmCursoInativoException.class)
     public ResponseEntity<ErroGenerico> tratarMatriculaEmCursoInativo(MatriculaEmCursoInativoException ex,
                                                                       HttpServletRequest request) {
 
         ErroGenerico error = new ErroGenerico("Não é possível realizar matricula em curso inativo.", HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(ExclusaoAlunoComMatriculaException.class)
+    public ResponseEntity<ErroGenerico> tratarMatriculaEmCursoInativo(ExclusaoAlunoComMatriculaException ex,
+                                                                      HttpServletRequest request) {
+
+        ErroGenerico error = new ErroGenerico("Não é possível deletar um usuário com matriculas ativas.", HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(ExclusaoCursoComMatriculaException.class)
+    public ResponseEntity<ErroGenerico> tratarMatriculaEmCursoInativo(ExclusaoCursoComMatriculaException ex,
+                                                                      HttpServletRequest request) {
+
+        ErroGenerico error = new ErroGenerico("Não é possível deletar um curso com matriculas de alunos ativas.", HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);

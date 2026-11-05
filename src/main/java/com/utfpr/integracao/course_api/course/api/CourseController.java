@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/courses")
+@RequestMapping("/cursos")
 public class CourseController {
 
     private final CourseService service;
@@ -54,12 +54,7 @@ public class CourseController {
     @PutMapping("/{id}")
     public ResponseEntity<CourseResponseDto> update(@PathVariable Long id, @RequestBody CourseRequestDto courseRequestDto) {
 
-        URI location = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(id)
-                .toUri();
-        return ResponseEntity.created(location).body(CourseMapper.toResponseDto(service.save(CourseMapper.toDomain(courseRequestDto))));
+        return ResponseEntity.ok(CourseMapper.toResponseDto(service.save(CourseMapper.toDomain(courseRequestDto, id))));
     }
 
     @DeleteMapping("/{id}")
