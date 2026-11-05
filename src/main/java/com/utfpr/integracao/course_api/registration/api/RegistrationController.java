@@ -81,6 +81,8 @@ public class RegistrationController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+
+        this.service.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 }
