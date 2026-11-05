@@ -6,6 +6,9 @@ import java.util.UUID;
 
 import com.utfpr.integracao.course_api.student.api.dto.StudentRequestDto;
 import com.utfpr.integracao.course_api.student.api.dto.StudentResponseDto;
+import com.utfpr.integracao.course_api.student.api.mapper.StudentApiMapper;
+import com.utfpr.integracao.course_api.student.data.StudentEntity;
+import com.utfpr.integracao.course_api.student.domain.StudentService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -23,43 +26,50 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/students")
 public class StudentController {
 
+    private StudentService service;
+    private StudentApiMapper mapper;
+
     @GetMapping
     public ResponseEntity<List<StudentResponseDto>> findAll(Pageable pageable) {
+        List<StudentResponseDto> allStudents = this.mapper.toDto(this.service.getAll());
 
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(allStudents);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<StudentResponseDto> findById(@PathVariable UUID id) {
-
-        return ResponseEntity.ok(new StudentResponseDto());
-    }
+//    @GetMapping("/{id}")
+//    public ResponseEntity<StudentResponseDto> findById(@PathVariable UUID id) {
+//
+//        return ResponseEntity.ok(new StudentResponseDto());
+//    }
 
     @PostMapping
     public ResponseEntity<StudentResponseDto> save(@Valid @RequestBody StudentRequestDto studentRequestDto) {
+        StudentEntity createdStudent = this.service.create(this.mapper.toEntity(studentRequestDto));
 
-        UUID id = UUID.randomUUID();
-        URI location = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(id)
-                .toUri();
-        return ResponseEntity.created(location).body(new StudentResponseDto());
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<StudentResponseDto> update(@PathVariable UUID id, @RequestBody StudentRequestDto studentRequestDto) {
+        StudentResponseDto createdStudentResponseDto = this.mapper.toDto(createdStudent);
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(id)
+                .buildAndExpand(createdStudentResponseDto.id())
                 .toUri();
-        return ResponseEntity.created(location).body(new StudentResponseDto());
+
+        return ResponseEntity.created(location).body(createdStudentResponseDto);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        return ResponseEntity.noContent().build();
-    }
+//    @PutMapping("/{id}")
+//    public ResponseEntity<StudentResponseDto> update(@PathVariable UUID id, @RequestBody StudentRequestDto studentRequestDto) {
+//
+//        URI location = ServletUriComponentsBuilder
+//                .fromCurrentRequest()
+//                .path("/{id}")
+//                .buildAndExpand(id)
+//                .toUri();
+//        return ResponseEntity.created(location).body(new StudentResponseDto());
+//    }
+//
+//    @DeleteMapping("/{id}")
+//    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+//        return ResponseEntity.noContent().build();
+//    }
 }
