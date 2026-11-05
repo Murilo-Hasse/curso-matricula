@@ -1,5 +1,13 @@
-# Trabalho 2 - Integração de Software
-## Descrição
+<h1 align="center"> Trabalho 2 - Integração de Sistemas </h1>
+
+<p align="center">
+  <a href="https://forthebadge.com">
+    <img src="https://forthebadge.com/badges/made-with-java.svg" alt="Badge 2" />
+  </a>
+  <a href="https://forthebadge.com">
+    <img src="https://forthebadge.com/api/badges/generate?panels=2&primaryLabel=BUILT+WITH&secondaryLabel=COFFEE&primaryBGColor=%237dc832&secondaryBGColor=%237b9759&primaryTextColor=%23FFFFFF&primaryFontSize=12&primaryFontWeight=600&primaryLetterSpacing=2&primaryFontFamily=Roboto&primaryTextTransform=uppercase&secondaryTextColor=%23FFFFFF&secondaryFontSize=12&secondaryFontWeight=900&secondaryLetterSpacing=2&secondaryFontFamily=Montserrat&secondaryTextTransform=uppercase&secondaryIcon=coffeescript&secondaryIconColor=%23FFFFFF&secondaryIconSize=16&secondaryIconPosition=left" alt="Badge 1" />
+  </a>
+</p>
 
 API REST em Spring Boot para gerenciar cursos, alunos e matrículas, com persistência em banco H2.
 ## Como executar
