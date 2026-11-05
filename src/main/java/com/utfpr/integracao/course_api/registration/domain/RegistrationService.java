@@ -1,6 +1,7 @@
 package com.utfpr.integracao.course_api.registration.domain;
 
 import com.utfpr.integracao.course_api.course.data.CourseRepository;
+import com.utfpr.integracao.course_api.exception.MatriculaEmCursoInativoException;
 import com.utfpr.integracao.course_api.registration.api.dto.RegistrationRequestDto;
 import com.utfpr.integracao.course_api.registration.api.dto.RegistrationResponseDto;
 import com.utfpr.integracao.course_api.registration.api.mapper.RegistrationApiMapper;
@@ -15,11 +16,13 @@ import org.springframework.stereotype.Service;
 public class RegistrationService {
 
     private final RegistrationRepository repository;
-    private final RegistrationApiMapper mapper;
-    private final CourseRepository courseRepository;
-    private final StudentRepository studentRepository;
 
-    public RegistrationResponseDto create(RegistrationRequestDto dto) {
+    public Registration create(Registration entity) {
+
+        if(entity.getCurso().getAtivo()) {
+            throw new MatriculaEmCursoInativoException("Não é possível se matricular em um curso inativo");
+        }
+        //matricula < 16 anos n é necessário porque nem é possível criar aluno menor que 16
 
         return this.repository.save(entity);
     }

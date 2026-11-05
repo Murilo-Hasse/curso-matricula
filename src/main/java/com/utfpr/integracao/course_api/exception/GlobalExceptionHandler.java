@@ -12,20 +12,30 @@ import java.util.List;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     @ExceptionHandler(AlunoNaoEncontradoException.class)
-    public ResponseEntity<ErroNaoEncontrado> tratarLivroNaoEncontrado(AlunoNaoEncontradoException ex,
-                                                                      HttpServletRequest request) {
+    public ResponseEntity<ErroGenerico> tratarAlunoNaoEncontrado(AlunoNaoEncontradoException ex,
+                                                                 HttpServletRequest request) {
 
-        ErroNaoEncontrado error = new ErroNaoEncontrado("Aluno não encontrado", HttpStatus.NOT_FOUND.value(),
+        ErroGenerico error = new ErroGenerico("Aluno não encontrado", HttpStatus.NOT_FOUND.value(),
                 ex.getMessage());
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
     @ExceptionHandler(CourseNotFound.class)
-    public ResponseEntity<ErroNaoEncontrado> tratarLivroNaoEncontrado(CourseNotFound ex,
+    public ResponseEntity<ErroGenerico> tratarCursoNaoEncontrado(CourseNotFound ex,
+                                                                 HttpServletRequest request) {
+
+        ErroGenerico error = new ErroGenerico("Curso não encontrado", HttpStatus.NOT_FOUND.value(),
+                ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(CourseNotFound.class)
+    public ResponseEntity<ErroGenerico> tratarMatriculaEmCursoInativo(MatriculaEmCursoInativoException ex,
                                                                       HttpServletRequest request) {
 
-        ErroNaoEncontrado error = new ErroNaoEncontrado("Curso não encontrado", HttpStatus.NOT_FOUND.value(),
+        ErroGenerico error = new ErroGenerico("Não é possível realizar matricula em curso inativo.", HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
