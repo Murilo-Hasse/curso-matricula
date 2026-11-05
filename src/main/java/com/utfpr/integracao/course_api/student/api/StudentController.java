@@ -12,11 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.data.domain.Page;
 
@@ -35,11 +31,11 @@ public class StudentController {
         return ResponseEntity.ok(allStudents);
     }
 
-//    @GetMapping("/{id}")
-//    public ResponseEntity<StudentResponseDto> findById(@PathVariable UUID id) {
-//
-//        return ResponseEntity.ok(new StudentResponseDto());
-//    }
+    @GetMapping("/{id}")
+    public ResponseEntity<StudentResponseDto> findById(@PathVariable Long id) {
+
+        return ResponseEntity.ok(this.mapper.toDto(this.service.getFromId(id)));
+    }
 
     @PostMapping
     public ResponseEntity<StudentResponseDto> save(@Valid @RequestBody StudentRequestDto studentRequestDto) {
@@ -66,9 +62,11 @@ public class StudentController {
 //                .toUri();
 //        return ResponseEntity.created(location).body(new StudentResponseDto());
 //    }
-//
-//    @DeleteMapping("/{id}")
-//    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-//        return ResponseEntity.noContent().build();
-//    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+
+        this.service.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
 }
