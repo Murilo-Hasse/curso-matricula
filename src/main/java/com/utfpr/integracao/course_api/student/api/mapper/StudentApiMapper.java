@@ -6,9 +6,6 @@ import com.utfpr.integracao.course_api.student.data.Student;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 @Component
 public class StudentApiMapper {
 

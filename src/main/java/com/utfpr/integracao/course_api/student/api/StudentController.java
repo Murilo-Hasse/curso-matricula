@@ -1,7 +1,6 @@
 package com.utfpr.integracao.course_api.student.api;
 
 import java.net.URI;
-import java.util.List;
 
 import com.utfpr.integracao.course_api.student.api.dto.StudentRequestDto;
 import com.utfpr.integracao.course_api.student.api.dto.StudentResponseDto;

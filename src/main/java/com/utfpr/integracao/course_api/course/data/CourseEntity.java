@@ -1,16 +1,18 @@
 package com.utfpr.integracao.course_api.course.data;
 
-import com.utfpr.integracao.course_api.registration.data.Registration;
-import jakarta.persistence.*;
-import org.hibernate.annotations.Check;
+import jakarta.persistence.CheckConstraint;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.util.List;
 
 @Setter
 @Getter
@@ -34,10 +36,10 @@ public class CourseEntity {
     private String nome;
 
     @Column(name = "carga_horaria", nullable = false,
-        check = @CheckConstraint(
-                name = "check_ch_min",
-                constraint = "carga_horaria > 0"
-        )
+            check = @CheckConstraint(
+                    name = "check_ch_min",
+                    constraint = "carga_horaria > 0"
+            )
     )
     private Integer cargaHoraria;
 
@@ -46,7 +48,4 @@ public class CourseEntity {
 
     @Column(name = "active", nullable = false)
     private Boolean ativo = false;
-
-    @OneToMany(mappedBy = "curso")
-    private List<Registration> matriculas;
 }

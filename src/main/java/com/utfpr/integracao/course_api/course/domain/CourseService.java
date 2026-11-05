@@ -1,8 +1,5 @@
 package com.utfpr.integracao.course_api.course.domain;
 
-import java.util.List;
-
-import com.utfpr.integracao.course_api.course.data.CourseEntity;
 import com.utfpr.integracao.course_api.course.data.CourseMapper;
 import com.utfpr.integracao.course_api.course.data.CourseRepository;
 import com.utfpr.integracao.course_api.exception.CourseNotFound;
