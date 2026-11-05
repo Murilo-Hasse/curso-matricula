@@ -1,9 +1,6 @@
 package com.utfpr.integracao.course_api.student.api.dto;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 public record StudentRequestDto (
 
@@ -15,7 +12,7 @@ public record StudentRequestDto (
     @Email(message = "E-mail Inválido.")
     String email,
 
-    @NotBlank(message = "Idade Obrigatória.")
+    @NotNull(message = "Idade Obrigatória.")
     @Min(value = 16, message = "O estudante deve ter no mínimo 16 anos.")
     Integer idade,
 

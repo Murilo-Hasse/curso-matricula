@@ -1,6 +1,6 @@
 package com.utfpr.integracao.course_api.student.domain;
 
-import com.utfpr.integracao.course_api.student.data.StudentEntity;
+import com.utfpr.integracao.course_api.student.data.Student;
 import com.utfpr.integracao.course_api.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,14 +11,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StudentService {
 
-    private StudentRepository repository;
+    private final StudentRepository repository;
 
-    public List<StudentEntity> getAll() {
+    public List<Student> getAll() {
 
         return this.repository.findAll();
     }
 
-    public StudentEntity create(StudentEntity entity) {
+    public Student create(Student entity) {
 
         return this.repository.save(entity);
     }

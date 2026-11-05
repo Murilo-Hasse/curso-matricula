@@ -2,32 +2,30 @@ package com.utfpr.integracao.course_api.student.api;
 
 import java.net.URI;
 import java.util.List;
-import java.util.UUID;
 
 import com.utfpr.integracao.course_api.student.api.dto.StudentRequestDto;
 import com.utfpr.integracao.course_api.student.api.dto.StudentResponseDto;
 import com.utfpr.integracao.course_api.student.api.mapper.StudentApiMapper;
-import com.utfpr.integracao.course_api.student.data.StudentEntity;
+import com.utfpr.integracao.course_api.student.data.Student;
 import com.utfpr.integracao.course_api.student.domain.StudentService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/students")
 public class StudentController {
 
-    private StudentService service;
-    private StudentApiMapper mapper;
+    private final StudentService service;
+    private final StudentApiMapper mapper;
 
     @GetMapping
     public ResponseEntity<List<StudentResponseDto>> findAll(Pageable pageable) {
@@ -44,7 +42,7 @@ public class StudentController {
 
     @PostMapping
     public ResponseEntity<StudentResponseDto> save(@Valid @RequestBody StudentRequestDto studentRequestDto) {
-        StudentEntity createdStudent = this.service.create(this.mapper.toEntity(studentRequestDto));
+        Student createdStudent = this.service.create(this.mapper.toEntity(studentRequestDto));
 
         StudentResponseDto createdStudentResponseDto = this.mapper.toDto(createdStudent);
 

@@ -2,7 +2,7 @@ package com.utfpr.integracao.course_api.student.api.mapper;
 
 import com.utfpr.integracao.course_api.student.api.dto.StudentRequestDto;
 import com.utfpr.integracao.course_api.student.api.dto.StudentResponseDto;
-import com.utfpr.integracao.course_api.student.data.StudentEntity;
+import com.utfpr.integracao.course_api.student.data.Student;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -11,9 +11,9 @@ import java.util.stream.Collectors;
 @Component
 public class StudentApiMapper {
 
-    public StudentEntity toEntity(StudentRequestDto dto) {
+    public Student toEntity(StudentRequestDto dto) {
 
-        return StudentEntity.builder()
+        return Student.builder()
                 .nome(dto.nome())
                 .email(dto.email())
                 .idade(dto.idade())
@@ -21,18 +21,18 @@ public class StudentApiMapper {
                 .build();
     }
 
-    public StudentResponseDto toDto(StudentEntity studentEntity) {
+    public StudentResponseDto toDto(Student student) {
 
         return new StudentResponseDto(
-                studentEntity.getId(),
-                studentEntity.getNome(),
-                studentEntity.getEmail(),
-                studentEntity.getIdade(),
-                studentEntity.getTelefone()
+                student.getId(),
+                student.getNome(),
+                student.getEmail(),
+                student.getIdade(),
+                student.getTelefone()
         );
     }
 
-    public List<StudentResponseDto> toDto(List<StudentEntity> domain) {
+    public List<StudentResponseDto> toDto(List<Student> domain) {
 
         return domain.stream().map(this::toDto).collect(Collectors.toList());
     }
