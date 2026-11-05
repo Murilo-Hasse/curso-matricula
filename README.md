@@ -49,6 +49,9 @@ A API sobe em `http://localhost:8080`.
 - `PUT /matriculas/{id}`
 - `DELETE /matriculas/{id}`
 
+### Detalhamento dos endpoints
+- Disponível em `http://localhost:8080/swagger-ui.html` detalhando os objetos de envio e retorno, porém sem documentação
+
 As listagesn aceitam paginação: `GET /cursos?page=0&size=5&sort=nome,asc`
 
 ## Testes
