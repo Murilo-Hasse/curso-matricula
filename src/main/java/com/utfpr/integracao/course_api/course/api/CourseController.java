@@ -1,7 +1,6 @@
 package com.utfpr.integracao.course_api.course.api;
 
 import java.net.URI;
-import java.util.List;
 
 import com.utfpr.integracao.course_api.course.domain.CourseService;
 import jakarta.validation.Valid;
@@ -42,7 +41,19 @@ public class CourseController {
     @PostMapping
     public ResponseEntity<CourseResponseDto> save(@Valid @RequestBody CourseRequestDto courseRequestDto) {
 
-        Long id = 0L;
+        var response = CourseMapper.toResponseDto(service.save(CourseMapper.toDomain(courseRequestDto)));
+
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(response.id())
+                .toUri();
+        return ResponseEntity.created(location).body(response);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CourseResponseDto> update(@PathVariable Long id, @RequestBody CourseRequestDto courseRequestDto) {
+
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -51,21 +62,10 @@ public class CourseController {
         return ResponseEntity.created(location).body(CourseMapper.toResponseDto(service.save(CourseMapper.toDomain(courseRequestDto))));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<CourseResponseDto> update(@PathVariable Long id,
-                                                     @RequestBody CourseRequestDto courseRequestDto) {
-//
-        return null;
-//        URI location = ServletUriComponentsBuilder
-//                .fromCurrentRequest()
-//                .path("/{id}")
-//                .buildAndExpand(id)
-//                .toUri();
-//        return ResponseEntity.created(location).body(new CourseResponseDto());
-    }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+
+        service.delete(id);
         return ResponseEntity.noContent().build();
     }
 }
