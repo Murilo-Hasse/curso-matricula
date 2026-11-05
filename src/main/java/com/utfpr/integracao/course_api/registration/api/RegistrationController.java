@@ -4,7 +4,10 @@ import java.util.List;
 
 import com.utfpr.integracao.course_api.registration.api.dto.RegistrationRequestDto;
 import com.utfpr.integracao.course_api.registration.api.dto.RegistrationResponseDto;
+import com.utfpr.integracao.course_api.registration.data.Registration;
+import com.utfpr.integracao.course_api.registration.domain.RegistrationService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,9 +20,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/matriculas")
 public class RegistrationController {
+
+    private final RegistrationService service;
 
     @GetMapping
     public ResponseEntity<List<RegistrationResponseDto>> findAll(Pageable pageable) {
@@ -30,19 +36,19 @@ public class RegistrationController {
     @GetMapping("/{id}")
     public ResponseEntity<RegistrationResponseDto> findById(@PathVariable Long id) {
 
-        return ResponseEntity.ok(new RegistrationResponseDto());
+        return ResponseEntity.ok();
     }
 
     @PostMapping
     public ResponseEntity<RegistrationResponseDto> save(@Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
 
-        Long id = 0L;
+        RegistrationResponseDto createdRegistration = this.service.create(registrationRequestDto);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(id)
+                .buildAndExpand(createdRegistration.id())
                 .toUri();
-        return ResponseEntity.created(location).body(new RegistrationResponseDto());
+        return ResponseEntity.created(location).body(createdRegistration);
     }
 
     @PutMapping("/{id}")
