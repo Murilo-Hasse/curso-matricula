@@ -1,5 +1,6 @@
 package com.utfpr.integracao.course_api.registration.data;
 
+import com.utfpr.integracao.course_api.course.data.CourseEntity;
 import com.utfpr.integracao.course_api.course.domain.Course;
 import com.utfpr.integracao.course_api.student.data.Student;
 import jakarta.persistence.*;
@@ -29,5 +30,5 @@ public class Registration {
 
     @ManyToOne
     @JoinColumn(name = "course_id", nullable = false)
-    private Course curso;
+    private CourseEntity curso;
 }

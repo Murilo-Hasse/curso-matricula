@@ -1,5 +1,13 @@
 package com.utfpr.integracao.course_api.registration.api.dto;
 
-public record RegistrationResponseDto() {
+import java.time.LocalDate;
+
+public record RegistrationResponseDto(
+    Long id,
+    LocalDate dataMatricula,
+    String status,
+    Long aluno,
+    Long curso
+) {
 
 }
