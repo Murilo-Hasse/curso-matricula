@@ -14,6 +14,7 @@ public record StudentRequestDto (
 
     @NotNull(message = "Idade Obrigatória.")
     @Min(value = 16, message = "O estudante deve ter no mínimo 16 anos.")
+    @Positive
     Integer idade,
 
     String telefone

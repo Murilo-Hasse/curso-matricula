@@ -3,6 +3,7 @@ package com.utfpr.integracao.course_api.student.api.mapper;
 import com.utfpr.integracao.course_api.student.api.dto.StudentRequestDto;
 import com.utfpr.integracao.course_api.student.api.dto.StudentResponseDto;
 import com.utfpr.integracao.course_api.student.data.Student;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -32,8 +33,8 @@ public class StudentApiMapper {
         );
     }
 
-    public List<StudentResponseDto> toDto(List<Student> domain) {
+    public Page<StudentResponseDto> toDto(Page<Student> domain) {
 
-        return domain.stream().map(this::toDto).collect(Collectors.toList());
+        return domain.map(this::toDto);
     }
 }

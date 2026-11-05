@@ -18,18 +18,19 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.data.domain.Page;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/students")
+@RequestMapping("/alunos")
 public class StudentController {
 
     private final StudentService service;
     private final StudentApiMapper mapper;
 
     @GetMapping
-    public ResponseEntity<List<StudentResponseDto>> findAll(Pageable pageable) {
-        List<StudentResponseDto> allStudents = this.mapper.toDto(this.service.getAll());
+    public ResponseEntity<Page<StudentResponseDto>> findAll(Pageable pageable) {
+        Page<StudentResponseDto> allStudents = this.mapper.toDto(this.service.getAll(pageable));
 
         return ResponseEntity.ok(allStudents);
     }

@@ -3,9 +3,9 @@ package com.utfpr.integracao.course_api.student.domain;
 import com.utfpr.integracao.course_api.student.data.Student;
 import com.utfpr.integracao.course_api.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -13,9 +13,9 @@ public class StudentService {
 
     private final StudentRepository repository;
 
-    public List<Student> getAll() {
+    public Page<Student> getAll(Pageable pageable) {
 
-        return this.repository.findAll();
+        return this.repository.findAll(pageable);
     }
 
     public Student create(Student entity) {
