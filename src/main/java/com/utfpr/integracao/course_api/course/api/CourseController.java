@@ -56,10 +56,10 @@ public class CourseController {
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
-                .path("/{id}")
+                .path("/{id}")mmi
                 .buildAndExpand(id)
                 .toUri();
-        return ResponseEntity.created(location).body(CourseMapper.toResponseDto(service.save(CourseMapper.toDomain(courseRequestDto))));
+        return ResponseEntity.ok(CourseMapper.toResponseDto(service.save(CourseMapper.toDomain(courseRequestDto))));
     }
 
     @DeleteMapping("/{id}")
