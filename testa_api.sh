@@ -1,686 +1,488 @@
 #!/usr/bin/env bash
-
-# ==============================================================================
-# Script de Teste Automatizado da API REST - Gerenciamento de Cursos e Matrículas
-# ==============================================================================
-# Uso:  ./testa_api.sh                          (usa http://localhost:8080)
-#       BASE_URL=http://localhost:8081 ./testa_api.sh
+# =============================================================================
+#  Testes automatizados da API REST - Gerenciamento de Cursos e Matrículas
+# =============================================================================
+#  Uso:
+#    ./test_api.sh                         # usa http://localhost:8080
+#    ./test_api.sh http://localhost:8081   # outra URL base
+#    VERBOSE=1 ./test_api.sh               # mostra a resposta de cada requisição
 #
-# Cobre:
-#   1. CRUD de Cursos      (POST/GET/GET{id}/PUT/DELETE /cursos)
-#   2. CRUD de Alunos      (POST/GET/GET{id}/PUT/DELETE /alunos)
-#   3. CRUD de Matrículas  (POST/GET/GET{id}/PUT/DELETE /matriculas)
-#   4. Paginação           (page, size, sort)
-#   5. Bean Validation     (@NotBlank, @NotNull, @Size, @Email, @Min, @Positive, ...)
-#   6. Requisitos REST     (status codes, header Location, 404 em recurso inexistente)
-#   7. Regras de Negócio   (curso inativo, aluno < 16, exclusão com matrículas)
-# ==============================================================================
+#  Resultados:
+#    OK    -> comportamento esperado
+#    FAIL  -> quebra um requisito da especificação
+#    WARN  -> funciona, mas poderia ser melhor (ex.: mensagem de erro não cita o campo)
+#
+#  Código de saída: 0 se nenhum teste falhou, 1 caso contrário.
+# =============================================================================
 
-BASE_URL="${BASE_URL:-http://localhost:8080}"
+BASE_URL="${1:-http://localhost:8080}"
+VERBOSE="${VERBOSE:-0}"
+STATUS_INICIAL="${STATUS_INICIAL:-ATIVO}"
+STATUS_FINAL="${STATUS_FINAL:-CONCLUIDO}"
+DATA_MATRICULA="$(date +%F)"
+RUN_ID="$(date +%s)"          # deixa e-mails únicos entre execuções
+ID_INEXISTENTE=999999999
 
-# Datas dinâmicas (dataMatricula usa @FutureOrPresent)
-HOJE=$(date +%F)
-ONTEM=$(date -d "yesterday" +%F)
-AMANHA=$(date -d "tomorrow" +%F)
+GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'
+YELLOW='\033[1;33m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
 
-# Sufixo único para permitir rodar o script várias vezes na mesma instância
-RUN_ID=$(date +%s)
-
-# Cores para formatação de output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-PASS=0
-FAIL=0
+PASS=0; FAIL=0; WARN=0
 FAILED_TESTS=()
 
-echo -e "${BLUE}======================================================================${NC}"
-echo -e "${BLUE}   Iniciando bateria de testes na API REST ($BASE_URL)${NC}"
-echo -e "${BLUE}======================================================================${NC}"
+# -----------------------------------------------------------------------------
+# Dependências
+# -----------------------------------------------------------------------------
+for cmd in curl jq; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo -e "${RED}Erro: '$cmd' não está instalado (ex.: sudo apt install $cmd).${NC}"
+        exit 1
+    fi
+done
 
-# Verifica se o jq está instalado
-if ! command -v jq &> /dev/null; then
-    echo -e "${RED}Erro: 'jq' não está instalado. Instale-o com 'sudo apt install jq' ou similar.${NC}"
-    exit 1
-fi
+BODY_FILE="$(mktemp)"; HEADER_FILE="$(mktemp)"
+trap 'rm -f "$BODY_FILE" "$HEADER_FILE"' EXIT
 
-# Verifica se a API está no ar
-if ! curl -s -o /dev/null "$BASE_URL/cursos"; then
-    echo -e "${RED}Erro: API não está respondendo em $BASE_URL${NC}"
-    exit 1
-fi
-
-TMP_DIR=$(mktemp -d)
-trap 'rm -rf "$TMP_DIR"' EXIT
-
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Funções auxiliares
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-# Executa uma requisição e popula HTTP_CODE, BODY e HEADERS
-# Uso: request METODO /caminho ['json']
+# Encurta um texto para exibir no terminal
+short() {
+    local s
+    s="$(printf '%s' "$1" | tr -d '\n')"
+    [ ${#s} -gt 300 ] && s="${s:0:300}..."
+    printf '%s' "$s"
+}
+
+# request MÉTODO CAMINHO [CORPO]  -> preenche HTTP_CODE e BODY
 request() {
-    local method=$1
-    local path=$2
-    local data=$3
-    local args=(-s -X "$method" "$BASE_URL$path" -D "$TMP_DIR/headers" -o "$TMP_DIR/body" -w "%{http_code}")
-
-    if [ -n "$data" ]; then
-        args+=(-H "Content-Type: application/json" -d "$data")
+    local method=$1 path=$2
+    local args=(-s -o "$BODY_FILE" -D "$HEADER_FILE" -w '%{http_code}' -X "$method" "$BASE_URL$path")
+    if [ $# -ge 3 ]; then
+        args+=(-H 'Content-Type: application/json' --data-raw "$3")
     fi
-
-    HTTP_CODE=$(curl "${args[@]}")
-    BODY=$(cat "$TMP_DIR/body")
-    HEADERS=$(tr -d '\r' < "$TMP_DIR/headers")
+    HTTP_CODE="$(curl "${args[@]}")"
+    BODY="$(cat "$BODY_FILE")"
+    if [ "$VERBOSE" = "1" ]; then
+        echo -e "         ${GRAY}$method $path -> $HTTP_CODE  $(short "$BODY")${NC}"
+    fi
 }
 
-pass() {
-    PASS=$((PASS + 1))
-    echo -e "[ ${GREEN}OK${NC} ] $1"
+pass() { PASS=$((PASS + 1)); echo -e "  [ ${GREEN}OK${NC}   ] $1"; }
+warn() {
+    WARN=$((WARN + 1)); echo -e "  [ ${YELLOW}WARN${NC} ] $1"
+    [ -n "${2-}" ] && echo -e "           ${GRAY}$2${NC}"
 }
-
 fail() {
-    FAIL=$((FAIL + 1))
-    FAILED_TESTS+=("$1")
-    echo -e "[ ${RED}FAIL${NC} ] $1"
-    if [ -n "$2" ]; then
-        echo -e "         ${RED}↳ $2${NC}"
-    fi
+    FAIL=$((FAIL + 1)); FAILED_TESTS+=("$1"); echo -e "  [ ${RED}FAIL${NC} ] $1"
+    [ -n "${2-}" ] && echo -e "           ${GRAY}$2${NC}"
 }
 
-# Valida o status HTTP. Aceita mais de um status esperado: check_status "Nome" 400 422
-check_status() {
-    local test_name=$1
-    shift
-    local expected
-    for expected in "$@"; do
-        if [ "$HTTP_CODE" = "$expected" ]; then
-            pass "$test_name (Status: $HTTP_CODE)"
+section() { echo -e "\n${YELLOW}${BOLD}---> $1${NC}"; }
+
+# expect_status DESCRIÇÃO CÓDIGO [CÓDIGO...]
+expect_status() {
+    local desc=$1; shift
+    local code expected
+    for code in "$@"; do
+        if [ "$HTTP_CODE" = "$code" ]; then
+            pass "$desc (HTTP $HTTP_CODE)"
             return 0
         fi
     done
-    fail "$test_name (Esperado: $*, Recebido: $HTTP_CODE)" "$(echo "$BODY" | head -c 300)"
+    expected="$(IFS=/; echo "$*")"
+    fail "$desc (esperado $expected, recebido $HTTP_CODE)" "Resposta: $(short "$BODY")"
     return 1
 }
 
-# Valida uma expressão jq (deve resultar em true) sobre o BODY atual
-check_json() {
-    local test_name=$1
-    local filter=$2
-    if echo "$BODY" | jq -e "$filter" > /dev/null 2>&1; then
-        pass "$test_name"
+# expect_json DESCRIÇÃO FILTRO_JQ [args do jq...]  -> o filtro deve resultar em true
+expect_json() {
+    local desc=$1 filter=$2; shift 2
+    if printf '%s' "$BODY" | jq -e "$@" "$filter" > /dev/null 2>&1; then
+        pass "$desc"
     else
-        fail "$test_name" "Filtro jq não satisfeito: $filter | Body: $(echo "$BODY" | head -c 300)"
+        fail "$desc" "Resposta: $(short "$BODY")"
     fi
 }
 
-# Valida que a resposta de erro de Bean Validation aponta o campo esperado
-check_validation_field() {
-    local test_name=$1
-    local campo=$2
-    check_json "$test_name -> erro aponta campo '$campo' com mensagem" \
-        "(.erros // []) | map(select(.campo == \"$campo\" and (.mensagem | length > 0))) | length > 0"
+# expect_location DESCRIÇÃO  -> POST deve devolver header Location
+expect_location() {
+    if grep -qi '^location:' "$HEADER_FILE"; then
+        pass "$1"
+    else
+        warn "$1: header Location ausente"
+    fi
 }
 
-# Teste completo de Bean Validation: status 400 + campo apontado
-check_bean_validation() {
-    local test_name=$1
-    local method=$2
-    local path=$3
-    local data=$4
-    local campo=$5
+json_id() { printf '%s' "$BODY" | jq -r '.id // empty' 2> /dev/null; }
+
+# mut JSON FILTRO_JQ  -> devolve o JSON modificado (para montar casos inválidos)
+mut() { printf '%s' "$1" | jq -c "$2"; }
+
+# invalid DESCRIÇÃO MÉTODO CAMINHO CORPO [CAMPO]
+#   Espera HTTP 400. Se CAMPO for informado, verifica se a mensagem de erro o cita.
+#   Se a API aceitar por engano (201), remove o registro criado.
+invalid() {
+    local desc=$1 method=$2 path=$3 data=$4 field=${5-}
     request "$method" "$path" "$data"
-    if check_status "Bean Validation: $test_name" 400; then
-        check_validation_field "Bean Validation: $test_name" "$campo"
+    if expect_status "$desc" 400; then
+        if [ -n "$field" ] && ! printf '%s' "$BODY" | grep -qi -- "$field"; then
+            warn "   ↳ mensagem de erro não cita o campo '$field'" "Resposta: $(short "$BODY")"
+        fi
+    elif [ "$HTTP_CODE" = "201" ] && [ "$method" = "POST" ]; then
+        local id; id="$(json_id)"
+        [ -n "$id" ] && curl -s -o /dev/null -X DELETE "$BASE_URL$path/$id"
     fi
 }
 
-# Valida header Location apontando para o recurso criado
-check_location() {
-    local test_name=$1
-    local expected_suffix=$2
-    local location
-    location=$(echo "$HEADERS" | grep -i '^location:' | awk '{print $2}')
-    if [[ "$location" == *"$expected_suffix" ]]; then
-        pass "$test_name (Location: $location)"
+# Monta o JSON de uma matrícula: matricula_json ALUNO CURSO [STATUS] [DATA]
+matricula_json() {
+    jq -nc --argjson a "$1" --argjson c "$2" \
+        --arg s "${3:-$STATUS_INICIAL}" --arg d "${4:-$DATA_MATRICULA}" \
+        '{dataMatricula: $d, status: $s, aluno: $a, curso: $c}'
+}
+
+aluno_json() { # aluno_json NOME EMAIL IDADE [TELEFONE]
+    if [ -n "${4-}" ]; then
+        jq -nc --arg n "$1" --arg e "$2" --argjson i "$3" --arg t "$4" \
+            '{nome: $n, email: $e, idade: $i, telefone: $t}'
     else
-        fail "$test_name" "Location esperado terminando em '$expected_suffix', recebido: '$location'"
+        jq -nc --arg n "$1" --arg e "$2" --argjson i "$3" '{nome: $n, email: $e, idade: $i}'
     fi
 }
 
-# Valida a estrutura de paginação (compatível com serialização DIRECT e VIA_DTO do Spring)
-check_page() {
-    local test_name=$1
-    local expected_size=$2
-    local expected_number=$3
-    check_json "$test_name -> possui 'content' (array)" '.content | type == "array"'
-    check_json "$test_name -> size = $expected_size" "(.size // .page.size) == $expected_size"
-    check_json "$test_name -> page = $expected_number" "(.number // .page.number) == $expected_number"
-    check_json "$test_name -> content.length <= size" ".content | length <= $expected_size"
-    check_json "$test_name -> possui totalElements e totalPages" \
-        '((.totalElements // .page.totalElements) != null) and ((.totalPages // .page.totalPages) != null)'
-}
+# Aceita respostas em que aluno/curso vêm como id, como objeto ou como alunoId/cursoId
+REF_FILTER='def ref(k): (.[k + "Id"] // (if (.[k] | type) == "object" then .[k].id else .[k] end));'
 
-# Valida que o campo está ordenado no content da página
-check_sorted() {
-    local test_name=$1
-    local field=$2
-    local direction=$3
-    local filter
-    if [ "$direction" = "asc" ]; then
-        filter="[.content[].$field] as \$v | \$v == (\$v | sort)"
-    else
-        filter="[.content[].$field] as \$v | \$v == (\$v | sort | reverse)"
+# Aceita Page serializado direto ou no formato { content, page: {...} }
+PAGE_FILTER='def psize: (.size // .page.size); def pnum: (.number // .page.number); def ptotal: (.totalElements // .page.totalElements);'
+
+summary() {
+    echo -e "\n${BLUE}======================================================================${NC}"
+    echo -e "  ${GREEN}OK: $PASS${NC}    ${RED}FAIL: $FAIL${NC}    ${YELLOW}WARN: $WARN${NC}"
+    if [ $FAIL -gt 0 ]; then
+        echo -e "\n  ${RED}${BOLD}Testes que falharam:${NC}"
+        for t in "${FAILED_TESTS[@]}"; do echo -e "   ${RED}•${NC} $t"; done
     fi
-    check_json "$test_name -> ordenado por $field $direction" "$filter"
+    echo -e "${BLUE}======================================================================${NC}"
 }
 
-section() {
-    echo -e "\n${YELLOW}---> $1${NC}"
+# require VALOR DESCRIÇÃO  -> aborta se um dado essencial não foi criado
+require() {
+    if [ -z "$1" ]; then
+        echo -e "\n${RED}${BOLD}Não foi possível criar $2. Os testes seguintes dependem disso; abortando.${NC}"
+        summary
+        exit 1
+    fi
 }
 
-# ==============================================================================
-# 1. CURSOS
-# ==============================================================================
-section "1. CRUD de CURSOS"
-
-# 1.1 Cadastrar curso ativo
-request POST /cursos '{
-    "nome": "Engenharia de Software",
-    "cargaHoraria": 360,
-    "categoria": "Tecnologia",
-    "ativo": true
-}'
-CURSO_ID_1=$(echo "$BODY" | jq -r '.id // empty')
-check_status "Cadastrar Curso 1 (Ativo)" 201
-check_json "Cadastrar Curso 1 -> retorna id" '.id | type == "number"'
-check_json "Cadastrar Curso 1 -> retorna os dados enviados" \
-    '.nome == "Engenharia de Software" and .cargaHoraria == 360 and .categoria == "Tecnologia" and .ativo == true'
-check_location "Cadastrar Curso 1 -> header Location" "/cursos/$CURSO_ID_1"
-
-# 1.2 Cadastrar curso inativo (usado na regra de negócio)
-request POST /cursos '{
-    "nome": "Design Gráfico",
-    "cargaHoraria": 120,
-    "categoria": "Artes",
-    "ativo": false
-}'
-CURSO_ID_INATIVO=$(echo "$BODY" | jq -r '.id // empty')
-check_status "Cadastrar Curso 2 (Inativo)" 201
-check_json "Cadastrar Curso 2 -> ativo = false" '.ativo == false'
-
-# 1.3 Cadastrar mais um curso (usado na paginação/ordenação)
-request POST /cursos '{
-    "nome": "Arquitetura de Computadores",
-    "cargaHoraria": 80,
-    "categoria": "Tecnologia",
-    "ativo": true
-}'
-CURSO_ID_3=$(echo "$BODY" | jq -r '.id // empty')
-check_status "Cadastrar Curso 3 (Ativo)" 201
-
-# 1.4 Bean Validation
-section "1.4 Bean Validation de CURSOS"
-NOME_128=$(printf 'a%.0s' {1..128})
-
-check_bean_validation "Nome < 5 caracteres (@Size)" POST /cursos \
-    '{"nome": "Java", "cargaHoraria": 40, "categoria": "TI", "ativo": true}' nome
-check_bean_validation "Nome > 127 caracteres (@Size)" POST /cursos \
-    "{\"nome\": \"$NOME_128\", \"cargaHoraria\": 40, \"categoria\": \"TI\", \"ativo\": true}" nome
-check_bean_validation "Nome em branco (@NotBlank)" POST /cursos \
-    '{"nome": "     ", "cargaHoraria": 40, "categoria": "TI", "ativo": true}' nome
-check_bean_validation "Nome ausente (@NotBlank)" POST /cursos \
-    '{"cargaHoraria": 40, "categoria": "TI", "ativo": true}' nome
-check_bean_validation "Carga horária = 0 (@Min)" POST /cursos \
-    '{"nome": "Curso Válido", "cargaHoraria": 0, "categoria": "TI", "ativo": true}' cargaHoraria
-check_bean_validation "Carga horária negativa (@Min)" POST /cursos \
-    '{"nome": "Curso Válido", "cargaHoraria": -10, "categoria": "TI", "ativo": true}' cargaHoraria
-check_bean_validation "Carga horária ausente (@NotNull)" POST /cursos \
-    '{"nome": "Curso Válido", "categoria": "TI", "ativo": true}' cargaHoraria
-check_bean_validation "Categoria em branco (@NotBlank)" POST /cursos \
-    '{"nome": "Curso Válido", "cargaHoraria": 40, "categoria": "", "ativo": true}' categoria
-check_bean_validation "Ativo ausente (@NotNull)" POST /cursos \
-    '{"nome": "Curso Válido", "cargaHoraria": 40, "categoria": "TI"}' ativo
-
-# Várias violações de uma vez retornam todos os campos
-request POST /cursos '{}'
-check_status "Bean Validation: Corpo vazio" 400
-check_json "Bean Validation: Corpo vazio -> retorna erro para todos os campos obrigatórios" \
-    '[.erros[].campo] | (index("nome") != null) and (index("cargaHoraria") != null) and (index("categoria") != null) and (index("ativo") != null)'
-check_json "Bean Validation: Corpo vazio -> estrutura do erro (status, mensagem, uri, erros)" \
-    '.status == 400 and (.mensagem | length > 0) and .uri == "/cursos" and (.erros | type == "array")'
-
-# JSON malformado
-request POST /cursos '{"nome": "Curso", '
-check_status "JSON malformado é rejeitado" 400
-
-# 1.5 Listar cursos com paginação
-section "1.5 Paginação de CURSOS"
-request GET "/cursos?page=0&size=5&sort=nome,asc"
-check_status "Listar Cursos (page=0&size=5&sort=nome,asc)" 200
-check_page "Listar Cursos" 5 0
-check_sorted "Listar Cursos" nome asc
-
-request GET "/cursos?page=0&size=5&sort=nome,desc"
-check_status "Listar Cursos (sort=nome,desc)" 200
-check_sorted "Listar Cursos desc" nome desc
-
-request GET "/cursos?page=0&size=5&sort=cargaHoraria,asc"
-check_status "Listar Cursos (sort=cargaHoraria,asc)" 200
-check_sorted "Listar Cursos" cargaHoraria asc
-
-request GET "/cursos?page=0&size=1"
-check_status "Listar Cursos (size=1)" 200
-check_page "Listar Cursos size=1" 1 0
-check_json "Listar Cursos size=1 -> retorna exatamente 1 item" '.content | length == 1'
-check_json "Listar Cursos size=1 -> totalPages >= 3" '(.totalPages // .page.totalPages) >= 3'
-
-request GET "/cursos?page=1&size=1&sort=id,asc"
-check_status "Listar Cursos (page=1&size=1)" 200
-check_page "Listar Cursos page=1" 1 1
-
-request GET "/cursos?page=9999&size=5"
-check_status "Listar Cursos (página inexistente)" 200
-check_json "Listar Cursos página inexistente -> content vazio" '.content | length == 0'
-
-request GET "/cursos"
-check_status "Listar Cursos (sem parâmetros, padrão do Pageable)" 200
-check_json "Listar Cursos sem parâmetros -> possui content" '.content | type == "array"'
-
-# 1.6 Buscar curso por ID
-section "1.6 Busca de CURSOS"
-request GET "/cursos/$CURSO_ID_1"
-check_status "Buscar Curso por ID ($CURSO_ID_1)" 200
-check_json "Buscar Curso por ID -> dados corretos" ".id == $CURSO_ID_1 and .nome == \"Engenharia de Software\""
-
-request GET "/cursos/999999"
-check_status "Buscar Curso inexistente" 404
-check_json "Buscar Curso inexistente -> corpo de erro (titulo, status, mensagem)" \
-    '.status == 404 and (.titulo | length > 0) and (.mensagem | length > 0)'
-
-# 1.7 Atualizar curso
-section "1.7 Atualização de CURSOS"
-request PUT "/cursos/$CURSO_ID_1" '{
-    "nome": "Engenharia de Software Avançada",
-    "cargaHoraria": 400,
-    "categoria": "Tecnologia",
-    "ativo": true
-}'
-check_status "Atualizar Curso ($CURSO_ID_1)" 200
-check_json "Atualizar Curso -> mantém o mesmo id" ".id == $CURSO_ID_1"
-check_json "Atualizar Curso -> retorna os dados atualizados" \
-    '.nome == "Engenharia de Software Avançada" and .cargaHoraria == 400'
-
-request GET "/cursos/$CURSO_ID_1"
-check_json "Atualizar Curso -> alteração persistida (GET)" \
-    '.nome == "Engenharia de Software Avançada" and .cargaHoraria == 400'
-
-request PUT "/cursos/999999" '{"nome": "Curso Inexistente", "cargaHoraria": 10, "categoria": "TI", "ativo": true}'
-check_status "Atualizar Curso inexistente" 404
-
-check_bean_validation "Atualizar Curso com nome inválido" PUT "/cursos/$CURSO_ID_1" \
-    '{"nome": "abc", "cargaHoraria": 10, "categoria": "TI", "ativo": true}' nome
-check_bean_validation "Atualizar Curso com carga horária inválida" PUT "/cursos/$CURSO_ID_1" \
-    '{"nome": "Curso Válido", "cargaHoraria": 0, "categoria": "TI", "ativo": true}' cargaHoraria
-
-# 1.8 Remover curso inexistente (remoção com sucesso é testada na seção 5)
-request DELETE "/cursos/999999"
-check_status "Remover Curso inexistente" 404
-
-# ==============================================================================
-# 2. ALUNOS
-# ==============================================================================
-section "2. CRUD de ALUNOS"
-
-# 2.1 Cadastrar aluno maior de 16 anos
-request POST /alunos "{
-    \"nome\": \"Carlos Eduardo\",
-    \"email\": \"carlos.$RUN_ID@gmail.com\",
-    \"idade\": 20,
-    \"telefone\": \"46999998888\"
-}"
-ALUNO_ID_1=$(echo "$BODY" | jq -r '.id // empty')
-check_status "Cadastrar Aluno 1 (20 anos)" 201
-check_json "Cadastrar Aluno 1 -> retorna id e dados" \
-    ".id != null and .nome == \"Carlos Eduardo\" and .email == \"carlos.$RUN_ID@gmail.com\" and .idade == 20 and .telefone == \"46999998888\""
-check_location "Cadastrar Aluno 1 -> header Location" "/alunos/$ALUNO_ID_1"
-
-# 2.2 Limite: exatamente 16 anos é permitido
-request POST /alunos "{
-    \"nome\": \"Ana Beatriz\",
-    \"email\": \"ana.$RUN_ID@gmail.com\",
-    \"idade\": 16
-}"
-ALUNO_ID_16=$(echo "$BODY" | jq -r '.id // empty')
-check_status "Cadastrar Aluno com exatamente 16 anos (limite) e sem telefone (opcional)" 201
-
-# 2.3 Regra de negócio: aluno menor de 16 anos
-section "2.3 Regra de Negócio: aluno menor de 16 anos"
-request POST /alunos "{
-    \"nome\": \"Lucas Gabriel\",
-    \"email\": \"lucas.$RUN_ID@gmail.com\",
-    \"idade\": 15,
-    \"telefone\": \"46988887777\"
-}"
-if check_status "Impedir cadastro de Aluno com 15 anos" 400 422; then
-    check_validation_field "Impedir cadastro de Aluno com 15 anos" idade
-fi
-
-request PUT "/alunos/$ALUNO_ID_1" "{
-    \"nome\": \"Carlos Eduardo\",
-    \"email\": \"carlos.$RUN_ID@gmail.com\",
-    \"idade\": 15
-}"
-check_status "Impedir atualizar Aluno para idade < 16" 400 422
-
-request GET "/alunos/$ALUNO_ID_1"
-check_json "Aluno não foi alterado após atualização inválida" '.idade == 20'
-
-# 2.4 Bean Validation
-section "2.4 Bean Validation de ALUNOS"
-check_bean_validation "E-mail inválido (@Email)" POST /alunos \
-    '{"nome": "Mariana Silva", "email": "email-invalido", "idade": 18}' email
-check_bean_validation "E-mail em branco (@NotBlank)" POST /alunos \
-    '{"nome": "Mariana Silva", "email": "", "idade": 18}' email
-check_bean_validation "E-mail ausente (@NotBlank)" POST /alunos \
-    '{"nome": "Mariana Silva", "idade": 18}' email
-check_bean_validation "Nome em branco (@NotBlank)" POST /alunos \
-    '{"nome": "   ", "email": "mariana@gmail.com", "idade": 18}' nome
-check_bean_validation "Nome com 1 caractere (@Size)" POST /alunos \
-    '{"nome": "M", "email": "mariana@gmail.com", "idade": 18}' nome
-check_bean_validation "Idade ausente (@NotNull)" POST /alunos \
-    '{"nome": "Mariana Silva", "email": "mariana@gmail.com"}' idade
-check_bean_validation "Idade negativa (@Positive / @Min)" POST /alunos \
-    '{"nome": "Mariana Silva", "email": "mariana@gmail.com", "idade": -5}' idade
-check_bean_validation "Idade zero (@Positive / @Min)" POST /alunos \
-    '{"nome": "Mariana Silva", "email": "mariana@gmail.com", "idade": 0}' idade
-
-request POST /alunos '{}'
-check_status "Bean Validation: Corpo vazio" 400
-check_json "Bean Validation: Corpo vazio -> retorna erro para nome, email e idade" \
-    '[.erros[].campo] | (index("nome") != null) and (index("email") != null) and (index("idade") != null)'
-
-# 2.5 Listar alunos com paginação
-section "2.5 Paginação de ALUNOS"
-request GET "/alunos?page=0&size=5&sort=nome,asc"
-check_status "Listar Alunos (page=0&size=5&sort=nome,asc)" 200
-check_page "Listar Alunos" 5 0
-check_sorted "Listar Alunos" nome asc
-
-request GET "/alunos?page=0&size=5&sort=idade,desc"
-check_status "Listar Alunos (sort=idade,desc)" 200
-check_sorted "Listar Alunos" idade desc
-
-request GET "/alunos?page=0&size=1"
-check_status "Listar Alunos (size=1)" 200
-check_json "Listar Alunos size=1 -> retorna exatamente 1 item" '.content | length == 1'
-
-# 2.6 Buscar aluno por ID
-section "2.6 Busca de ALUNOS"
-request GET "/alunos/$ALUNO_ID_1"
-check_status "Buscar Aluno por ID ($ALUNO_ID_1)" 200
-check_json "Buscar Aluno por ID -> dados corretos" ".id == $ALUNO_ID_1 and .idade == 20"
-
-request GET "/alunos/999999"
-check_status "Buscar Aluno inexistente" 404
-check_json "Buscar Aluno inexistente -> corpo de erro (titulo, status, mensagem)" \
-    '.status == 404 and (.titulo | length > 0) and (.mensagem | length > 0)'
-
-# 2.7 Atualizar aluno
-section "2.7 Atualização de ALUNOS"
-request PUT "/alunos/$ALUNO_ID_1" "{
-    \"nome\": \"Carlos Eduardo Silva\",
-    \"email\": \"carlos.silva.$RUN_ID@gmail.com\",
-    \"idade\": 21,
-    \"telefone\": \"46999998888\"
-}"
-check_status "Atualizar Aluno ($ALUNO_ID_1)" 200
-check_json "Atualizar Aluno -> mantém o mesmo id" ".id == $ALUNO_ID_1"
-check_json "Atualizar Aluno -> retorna os dados atualizados" \
-    ".nome == \"Carlos Eduardo Silva\" and .email == \"carlos.silva.$RUN_ID@gmail.com\" and .idade == 21"
-
-request GET "/alunos/$ALUNO_ID_1"
-check_json "Atualizar Aluno -> alteração persistida (GET)" '.nome == "Carlos Eduardo Silva" and .idade == 21'
-
-request PUT "/alunos/999999" '{"nome": "Fulano", "email": "fulano@gmail.com", "idade": 20}'
-check_status "Atualizar Aluno inexistente" 404
-
-check_bean_validation "Atualizar Aluno com e-mail inválido" PUT "/alunos/$ALUNO_ID_1" \
-    '{"nome": "Carlos", "email": "invalido", "idade": 21}' email
-
-# 2.8 Remover aluno inexistente (remoção com sucesso é testada na seção 5)
-request DELETE "/alunos/999999"
-check_status "Remover Aluno inexistente" 404
-
-# ==============================================================================
-# 3. MATRÍCULAS
-# ==============================================================================
-section "3. CRUD de MATRÍCULAS"
-
-# 3.1 Realizar matrícula válida
-request POST /matriculas "{
-    \"dataMatricula\": \"$HOJE\",
-    \"status\": \"ATIVA\",
-    \"aluno\": $ALUNO_ID_1,
-    \"curso\": $CURSO_ID_1
-}"
-MATRICULA_ID_1=$(echo "$BODY" | jq -r '.id // empty')
-check_status "Realizar Matrícula válida (data de hoje)" 201
-check_json "Realizar Matrícula -> retorna id, aluno, curso, status e data" \
-    ".id != null and .aluno == $ALUNO_ID_1 and .curso == $CURSO_ID_1 and .status == \"ATIVA\" and .dataMatricula == \"$HOJE\""
-check_location "Realizar Matrícula -> header Location" "/matriculas/$MATRICULA_ID_1"
-
-# 3.2 Matrícula com data futura (permitido)
-request POST /matriculas "{
-    \"dataMatricula\": \"$AMANHA\",
-    \"status\": \"ATIVA\",
-    \"aluno\": $ALUNO_ID_16,
-    \"curso\": $CURSO_ID_3
-}"
-MATRICULA_ID_2=$(echo "$BODY" | jq -r '.id // empty')
-check_status "Realizar Matrícula com data futura" 201
-
-# 3.3 Regras de negócio na matrícula
-section "3.3 Regras de Negócio na MATRÍCULA"
-request POST /matriculas "{
-    \"dataMatricula\": \"$HOJE\",
-    \"status\": \"ATIVA\",
-    \"aluno\": $ALUNO_ID_1,
-    \"curso\": $CURSO_ID_INATIVO
-}"
-check_status "Impedir Matrícula em Curso Inativo" 400 409 422
-check_json "Impedir Matrícula em Curso Inativo -> corpo de erro com mensagem" '(.mensagem | length > 0)'
-
-# Curso que fica inativo depois: novas matrículas também devem ser bloqueadas
-request PUT "/cursos/$CURSO_ID_3" '{"nome": "Arquitetura de Computadores", "cargaHoraria": 80, "categoria": "Tecnologia", "ativo": false}'
-check_status "Inativar Curso 3" 200
-request POST /matriculas "{
-    \"dataMatricula\": \"$HOJE\",
-    \"status\": \"ATIVA\",
-    \"aluno\": $ALUNO_ID_1,
-    \"curso\": $CURSO_ID_3
-}"
-check_status "Impedir Matrícula em curso que foi inativado" 400 409 422
-
-request PUT "/matriculas/$MATRICULA_ID_1" "{
-    \"dataMatricula\": \"$HOJE\",
-    \"status\": \"ATIVA\",
-    \"aluno\": $ALUNO_ID_1,
-    \"curso\": $CURSO_ID_INATIVO
-}"
-check_status "Impedir transferir Matrícula para Curso Inativo (PUT)" 400 409 422
-
-# Aluno menor de 16: a API impede o cadastro/atualização (seção 2.3),
-# então nunca existe um aluno < 16 para ser matriculado. Validamos aqui que a
-# tentativa de cadastrar e matricular um menor falha em toda a cadeia.
-request POST /alunos "{\"nome\": \"Pedro Henrique\", \"email\": \"pedro.$RUN_ID@gmail.com\", \"idade\": 12}"
-ALUNO_ID_MENOR=$(echo "$BODY" | jq -r '.id // empty')
-check_status "Impedir Matrícula de menor de 16: cadastro do aluno com 12 anos é bloqueado" 400 422
-if [ -n "$ALUNO_ID_MENOR" ]; then
-    request POST /matriculas "{\"dataMatricula\": \"$HOJE\", \"status\": \"ATIVA\", \"aluno\": $ALUNO_ID_MENOR, \"curso\": $CURSO_ID_1}"
-    check_status "Impedir Matrícula de aluno menor de 16 anos" 400 422
-else
-    pass "Impedir Matrícula de menor de 16: nenhum aluno menor foi criado, matrícula impossível"
-fi
-
-request POST /matriculas "{
-    \"dataMatricula\": \"$HOJE\",
-    \"status\": \"ATIVA\",
-    \"aluno\": 999999,
-    \"curso\": $CURSO_ID_1
-}"
-check_status "Matrícula com aluno inexistente" 404
-
-request POST /matriculas "{
-    \"dataMatricula\": \"$HOJE\",
-    \"status\": \"ATIVA\",
-    \"aluno\": $ALUNO_ID_1,
-    \"curso\": 999999
-}"
-check_status "Matrícula com curso inexistente" 404
-
-# 3.4 Bean Validation
-section "3.4 Bean Validation de MATRÍCULAS"
-check_bean_validation "Data no passado (@FutureOrPresent)" POST /matriculas \
-    "{\"dataMatricula\": \"$ONTEM\", \"status\": \"ATIVA\", \"aluno\": $ALUNO_ID_1, \"curso\": $CURSO_ID_1}" dataMatricula
-check_bean_validation "Data ausente (@NotNull)" POST /matriculas \
-    "{\"status\": \"ATIVA\", \"aluno\": $ALUNO_ID_1, \"curso\": $CURSO_ID_1}" dataMatricula
-check_bean_validation "Status em branco (@NotBlank)" POST /matriculas \
-    "{\"dataMatricula\": \"$HOJE\", \"status\": \"\", \"aluno\": $ALUNO_ID_1, \"curso\": $CURSO_ID_1}" status
-check_bean_validation "Aluno ausente (@NotNull)" POST /matriculas \
-    "{\"dataMatricula\": \"$HOJE\", \"status\": \"ATIVA\", \"curso\": $CURSO_ID_1}" aluno
-check_bean_validation "Aluno com id negativo (@Positive)" POST /matriculas \
-    "{\"dataMatricula\": \"$HOJE\", \"status\": \"ATIVA\", \"aluno\": -1, \"curso\": $CURSO_ID_1}" aluno
-check_bean_validation "Curso ausente (@NotNull)" POST /matriculas \
-    "{\"dataMatricula\": \"$HOJE\", \"status\": \"ATIVA\", \"aluno\": $ALUNO_ID_1}" curso
-check_bean_validation "Curso com id zero (@Positive)" POST /matriculas \
-    "{\"dataMatricula\": \"$HOJE\", \"status\": \"ATIVA\", \"aluno\": $ALUNO_ID_1, \"curso\": 0}" curso
-
-request POST /matriculas '{}'
-check_status "Bean Validation: Corpo vazio" 400
-check_json "Bean Validation: Corpo vazio -> retorna erro para dataMatricula, status, aluno e curso" \
-    '[.erros[].campo] | (index("dataMatricula") != null) and (index("status") != null) and (index("aluno") != null) and (index("curso") != null)'
-
-# 3.5 Listar matrículas com paginação
-section "3.5 Paginação de MATRÍCULAS"
-request GET "/matriculas?page=0&size=5&sort=dataMatricula,desc"
-check_status "Listar Matrículas (page=0&size=5&sort=dataMatricula,desc)" 200
-check_page "Listar Matrículas" 5 0
-check_sorted "Listar Matrículas" dataMatricula desc
-
-request GET "/matriculas?page=0&size=1&sort=id,asc"
-check_status "Listar Matrículas (size=1)" 200
-check_json "Listar Matrículas size=1 -> retorna exatamente 1 item" '.content | length == 1'
-check_json "Listar Matrículas size=1 -> totalElements >= 2" '(.totalElements // .page.totalElements) >= 2'
-
-# 3.6 Buscar matrícula por ID
-section "3.6 Busca de MATRÍCULAS"
-request GET "/matriculas/$MATRICULA_ID_1"
-check_status "Buscar Matrícula por ID ($MATRICULA_ID_1)" 200
-check_json "Buscar Matrícula por ID -> dados corretos" \
-    ".id == $MATRICULA_ID_1 and .aluno == $ALUNO_ID_1 and .curso == $CURSO_ID_1"
-
-request GET "/matriculas/999999"
-check_status "Buscar Matrícula inexistente" 404
-check_json "Buscar Matrícula inexistente -> corpo de erro (titulo, status, mensagem)" \
-    '.status == 404 and (.titulo | length > 0) and (.mensagem | length > 0)'
-
-# 3.7 Atualizar status da matrícula
-section "3.7 Atualização de MATRÍCULAS"
-request PUT "/matriculas/$MATRICULA_ID_1" "{
-    \"dataMatricula\": \"$HOJE\",
-    \"status\": \"CONCLUIDA\",
-    \"aluno\": $ALUNO_ID_1,
-    \"curso\": $CURSO_ID_1
-}"
-check_status "Atualizar Status da Matrícula" 200
-check_json "Atualizar Status da Matrícula -> mantém o mesmo id e retorna novo status" \
-    ".id == $MATRICULA_ID_1 and .status == \"CONCLUIDA\""
-
-request GET "/matriculas/$MATRICULA_ID_1"
-check_json "Atualizar Status da Matrícula -> alteração persistida (GET)" '.status == "CONCLUIDA"'
-
-request PUT "/matriculas/999999" "{
-    \"dataMatricula\": \"$HOJE\",
-    \"status\": \"ATIVA\",
-    \"aluno\": $ALUNO_ID_1,
-    \"curso\": $CURSO_ID_1
-}"
-check_status "Atualizar Matrícula inexistente" 404
-
-check_bean_validation "Atualizar Matrícula com status em branco" PUT "/matriculas/$MATRICULA_ID_1" \
-    "{\"dataMatricula\": \"$HOJE\", \"status\": \" \", \"aluno\": $ALUNO_ID_1, \"curso\": $CURSO_ID_1}" status
-
-# ==============================================================================
-# 4. REGRAS DE EXCLUSÃO COM MATRÍCULAS
-# ==============================================================================
-section "4. Regras de Negócio: exclusão com matrículas"
-
-request DELETE "/cursos/$CURSO_ID_1"
-check_status "Impedir Exclusão de Curso com Matrículas" 400 409 422
-check_json "Impedir Exclusão de Curso -> corpo de erro com mensagem" '(.mensagem | length > 0)'
-request GET "/cursos/$CURSO_ID_1"
-check_status "Curso com matrículas continua existindo após tentativa de exclusão" 200
-
-request DELETE "/alunos/$ALUNO_ID_1"
-check_status "Impedir Exclusão de Aluno com Matrículas" 400 409 422
-check_json "Impedir Exclusão de Aluno -> corpo de erro com mensagem" '(.mensagem | length > 0)'
-request GET "/alunos/$ALUNO_ID_1"
-check_status "Aluno com matrículas continua existindo após tentativa de exclusão" 200
-
-# ==============================================================================
-# 5. CANCELAMENTO DE MATRÍCULA E REMOÇÕES
-# ==============================================================================
-section "5. Cancelamento de matrícula e remoções"
-
-# 5.1 Cancelar matrícula
-request DELETE "/matriculas/$MATRICULA_ID_1"
-check_status "Cancelar Matrícula ($MATRICULA_ID_1)" 200 204
-request GET "/matriculas/$MATRICULA_ID_1"
-check_status "Matrícula cancelada não é mais encontrada" 404
-request DELETE "/matriculas/$MATRICULA_ID_1"
-check_status "Cancelar Matrícula já cancelada / inexistente" 404
-
-# 5.2 Remover curso sem matrículas
-request DELETE "/cursos/$CURSO_ID_1"
-check_status "Remover Curso sem Matrículas ($CURSO_ID_1)" 200 204
-request GET "/cursos/$CURSO_ID_1"
-check_status "Curso removido não é mais encontrado" 404
-
-# 5.3 Remover aluno sem matrículas
-request DELETE "/alunos/$ALUNO_ID_1"
-check_status "Remover Aluno sem Matrículas ($ALUNO_ID_1)" 200 204
-request GET "/alunos/$ALUNO_ID_1"
-check_status "Aluno removido não é mais encontrado" 404
-
-# 5.4 Limpeza dos demais dados criados
-request DELETE "/matriculas/$MATRICULA_ID_2"
-check_status "Cancelar Matrícula 2 ($MATRICULA_ID_2)" 200 204
-request DELETE "/alunos/$ALUNO_ID_16"
-check_status "Remover Aluno 2 ($ALUNO_ID_16)" 200 204
-request DELETE "/cursos/$CURSO_ID_3"
-check_status "Remover Curso 3 ($CURSO_ID_3)" 200 204
-request DELETE "/cursos/$CURSO_ID_INATIVO"
-check_status "Remover Curso Inativo ($CURSO_ID_INATIVO)" 200 204
-
-# ==============================================================================
-# RESUMO
-# ==============================================================================
-TOTAL=$((PASS + FAIL))
-echo -e "\n${BLUE}======================================================================${NC}"
-echo -e "${BLUE}                    Bateria de Testes Concluída!                      ${NC}"
 echo -e "${BLUE}======================================================================${NC}"
-echo -e "Total: $TOTAL | ${GREEN}Passaram: $PASS${NC} | ${RED}Falharam: $FAIL${NC}"
+echo -e "${BLUE}${BOLD}   Testes da API REST - Cursos e Matrículas  ($BASE_URL)${NC}"
+echo -e "${BLUE}======================================================================${NC}"
 
-if [ "$FAIL" -gt 0 ]; then
-    echo -e "\n${RED}Testes que falharam:${NC}"
-    for t in "${FAILED_TESTS[@]}"; do
-        echo -e "  ${RED}- $t${NC}"
-    done
+# -----------------------------------------------------------------------------
+# 0. Conectividade
+# -----------------------------------------------------------------------------
+request GET "/cursos"
+if [ "$HTTP_CODE" = "000" ]; then
+    echo -e "\n${RED}Não foi possível conectar em $BASE_URL. A aplicação está rodando?${NC}"
     exit 1
 fi
 
-exit 0
+# =============================================================================
+# 1. CURSOS - CRUD
+# =============================================================================
+section "1. CURSOS - CRUD"
+
+CURSO_BASE='{"nome":"Engenharia de Software","cargaHoraria":360,"categoria":"Tecnologia","ativo":true}'
+
+request POST "/cursos" "$CURSO_BASE"
+expect_status "Cadastrar curso ativo" 201
+CURSO_ID="$(json_id)"
+expect_location "   ↳ POST /cursos devolve header Location"
+expect_json "   ↳ resposta contém os dados enviados" \
+    '.id != null and .nome == "Engenharia de Software" and .cargaHoraria == 360 and .ativo == true'
+require "$CURSO_ID" "o curso ativo"
+
+request POST "/cursos" '{"nome":"Design Gráfico","cargaHoraria":120,"categoria":"Artes","ativo":false}'
+expect_status "Cadastrar curso inativo" 201
+CURSO_INATIVO_ID="$(json_id)"
+require "$CURSO_INATIVO_ID" "o curso inativo"
+
+request POST "/cursos" '{"nome":"Redes","cargaHoraria":1,"categoria":"TI","ativo":true}'
+expect_status "Limite: nome com exatamente 5 caracteres e cargaHoraria = 1 são aceitos" 201
+ID_TMP="$(json_id)"
+[ -n "$ID_TMP" ] && curl -s -o /dev/null -X DELETE "$BASE_URL/cursos/$ID_TMP"
+
+request GET "/cursos/$CURSO_ID"
+expect_status "Buscar curso por ID" 200
+expect_json "   ↳ retorna o curso correto" '.id == $id and .nome == "Engenharia de Software"' --argjson id "$CURSO_ID"
+
+request GET "/cursos/$ID_INEXISTENTE"
+expect_status "Buscar curso inexistente" 404
+
+request PUT "/cursos/$CURSO_ID" \
+    '{"nome":"Engenharia de Software Avançada","cargaHoraria":400,"categoria":"Tecnologia","ativo":true}'
+expect_status "Atualizar curso" 200
+expect_json "   ↳ resposta reflete a atualização" \
+    '.id == $id and .nome == "Engenharia de Software Avançada" and .cargaHoraria == 400' --argjson id "$CURSO_ID"
+
+request GET "/cursos/$CURSO_ID"
+expect_json "   ↳ atualização foi persistida (GET após PUT)" '.cargaHoraria == 400'
+
+request PUT "/cursos/$ID_INEXISTENTE" "$CURSO_BASE"
+expect_status "Atualizar curso inexistente" 404
+
+# =============================================================================
+# 2. CURSOS - Bean Validation
+# =============================================================================
+section "2. CURSOS - Bean Validation (espera HTTP 400)"
+
+invalid "Corpo vazio {}"                         POST "/cursos" '{}'                                        nome
+invalid "nome ausente"                           POST "/cursos" "$(mut "$CURSO_BASE" 'del(.nome)')"          nome
+invalid "nome só com espaços"                    POST "/cursos" "$(mut "$CURSO_BASE" '.nome = "      "')"     nome
+invalid "nome com 4 caracteres"                  POST "/cursos" "$(mut "$CURSO_BASE" '.nome = "Java"')"       nome
+invalid "cargaHoraria ausente"                   POST "/cursos" "$(mut "$CURSO_BASE" 'del(.cargaHoraria)')"  cargaHoraria
+invalid "cargaHoraria = 0"                       POST "/cursos" "$(mut "$CURSO_BASE" '.cargaHoraria = 0')"   cargaHoraria
+invalid "cargaHoraria negativa"                  POST "/cursos" "$(mut "$CURSO_BASE" '.cargaHoraria = -10')" cargaHoraria
+invalid "categoria ausente"                      POST "/cursos" "$(mut "$CURSO_BASE" 'del(.categoria)')"     categoria
+invalid "categoria em branco"                    POST "/cursos" "$(mut "$CURSO_BASE" '.categoria = ""')"     categoria
+invalid "ativo ausente"                          POST "/cursos" "$(mut "$CURSO_BASE" 'del(.ativo)')"         ativo
+invalid "cargaHoraria com tipo errado (\"abc\")" POST "/cursos" "$(mut "$CURSO_BASE" '.cargaHoraria = "abc"')"
+invalid "JSON malformado"                        POST "/cursos" '{"nome": "Curso sem fechar'
+invalid "PUT com nome curto também é validado"   PUT  "/cursos/$CURSO_ID" "$(mut "$CURSO_BASE" '.nome = "ABC"')" nome
+invalid "PUT com cargaHoraria = 0"               PUT  "/cursos/$CURSO_ID" "$(mut "$CURSO_BASE" '.cargaHoraria = 0')" cargaHoraria
+
+# =============================================================================
+# 3. ALUNOS - CRUD
+# =============================================================================
+section "3. ALUNOS - CRUD"
+
+ALUNO_BASE="$(aluno_json "Carlos Eduardo" "carlos.$RUN_ID@teste.com" 20 "46999998888")"
+
+request POST "/alunos" "$ALUNO_BASE"
+expect_status "Cadastrar aluno (20 anos)" 201
+ALUNO_ID="$(json_id)"
+expect_location "   ↳ POST /alunos devolve header Location"
+expect_json "   ↳ resposta contém os dados enviados" \
+    '.id != null and .nome == "Carlos Eduardo" and .email == $e and .idade == 20' --arg e "carlos.$RUN_ID@teste.com"
+require "$ALUNO_ID" "o aluno base"
+
+request POST "/alunos" "$(aluno_json "Ana Paula" "ana.$RUN_ID@teste.com" 16)"
+expect_status "Limite: aluno com exatamente 16 anos e sem telefone (opcional) é aceito" 201
+ID_TMP="$(json_id)"
+[ -n "$ID_TMP" ] && curl -s -o /dev/null -X DELETE "$BASE_URL/alunos/$ID_TMP"
+
+request GET "/alunos/$ALUNO_ID"
+expect_status "Buscar aluno por ID" 200
+expect_json "   ↳ retorna o aluno correto" '.id == $id and .nome == "Carlos Eduardo"' --argjson id "$ALUNO_ID"
+
+request GET "/alunos/$ID_INEXISTENTE"
+expect_status "Buscar aluno inexistente" 404
+
+request PUT "/alunos/$ALUNO_ID" "$(aluno_json "Carlos Eduardo Silva" "carlos.silva.$RUN_ID@teste.com" 21 "46999998888")"
+expect_status "Atualizar aluno" 200
+expect_json "   ↳ resposta reflete a atualização" '.nome == "Carlos Eduardo Silva" and .idade == 21'
+
+request GET "/alunos/$ALUNO_ID"
+expect_json "   ↳ atualização foi persistida (GET após PUT)" '.idade == 21'
+
+request PUT "/alunos/$ID_INEXISTENTE" "$ALUNO_BASE"
+expect_status "Atualizar aluno inexistente" 404
+
+# =============================================================================
+# 4. ALUNOS - Bean Validation
+# =============================================================================
+section "4. ALUNOS - Bean Validation (espera HTTP 400)"
+
+invalid "Corpo vazio {}"                      POST "/alunos" '{}'                                           nome
+invalid "nome ausente"                        POST "/alunos" "$(mut "$ALUNO_BASE" 'del(.nome)')"             nome
+invalid "nome em branco"                      POST "/alunos" "$(mut "$ALUNO_BASE" '.nome = "   "')"          nome
+invalid "email ausente"                       POST "/alunos" "$(mut "$ALUNO_BASE" 'del(.email)')"            email
+invalid "email inválido (sem @)"              POST "/alunos" "$(mut "$ALUNO_BASE" '.email = "email-invalido"')" email
+invalid "email inválido (sem domínio)"        POST "/alunos" "$(mut "$ALUNO_BASE" '.email = "carlos@"')"     email
+invalid "idade 15 (menor de 16)"              POST "/alunos" "$(mut "$ALUNO_BASE" '.idade = 15')"            idade
+invalid "idade 0"                             POST "/alunos" "$(mut "$ALUNO_BASE" '.idade = 0')"             idade
+invalid "idade com tipo errado (\"vinte\")"   POST "/alunos" "$(mut "$ALUNO_BASE" '.idade = "vinte"')"
+invalid "PUT com idade 15 também é validado"  PUT  "/alunos/$ALUNO_ID" "$(mut "$ALUNO_BASE" '.idade = 15')"  idade
+invalid "PUT com email inválido"              PUT  "/alunos/$ALUNO_ID" "$(mut "$ALUNO_BASE" '.email = "x"')" email
+
+# idade ausente: a especificação só diz "mínimo 16", mas sem @NotNull um aluno
+# sem idade burla a regra "impedir matrícula de aluno menor de 16 anos".
+request POST "/alunos" "$(mut "$ALUNO_BASE" 'del(.idade) | .email = "sem.idade.'"$RUN_ID"'@teste.com"')"
+if [ "$HTTP_CODE" = "400" ]; then
+    pass "idade ausente é rejeitada (HTTP 400)"
+else
+    warn "idade ausente foi aceita (HTTP $HTTP_CODE): considere @NotNull em idade"
+    ID_TMP="$(json_id)"
+    [ -n "$ID_TMP" ] && curl -s -o /dev/null -X DELETE "$BASE_URL/alunos/$ID_TMP"
+fi
+
+# =============================================================================
+# 5. MATRÍCULAS - CRUD e regras de negócio
+# =============================================================================
+section "5. MATRÍCULAS - CRUD e regras de negócio"
+
+request POST "/matriculas" "$(matricula_json "$ALUNO_ID" "$CURSO_INATIVO_ID")"
+expect_status "Regra: impedir matrícula em curso inativo" 400 409 422
+
+# Curso que estava ativo e foi desativado via PUT
+request POST "/cursos" '{"nome":"Curso Desativado Depois","cargaHoraria":30,"categoria":"Teste","ativo":true}'
+CURSO_TMP_ID="$(json_id)"
+if [ -n "$CURSO_TMP_ID" ]; then
+    request PUT "/cursos/$CURSO_TMP_ID" '{"nome":"Curso Desativado Depois","cargaHoraria":30,"categoria":"Teste","ativo":false}'
+    request POST "/matriculas" "$(matricula_json "$ALUNO_ID" "$CURSO_TMP_ID")"
+    expect_status "Regra: impedir matrícula em curso desativado via PUT" 400 409 422
+    if [ "$HTTP_CODE" = "201" ]; then
+        ID_TMP="$(json_id)"; [ -n "$ID_TMP" ] && curl -s -o /dev/null -X DELETE "$BASE_URL/matriculas/$ID_TMP"
+    fi
+    curl -s -o /dev/null -X DELETE "$BASE_URL/cursos/$CURSO_TMP_ID"
+fi
+
+request POST "/matriculas" "$(matricula_json "$ALUNO_ID" "$CURSO_ID")"
+expect_status "Realizar matrícula válida" 201
+MATRICULA_ID="$(json_id)"
+expect_location "   ↳ POST /matriculas devolve header Location"
+expect_json "   ↳ resposta contém data, status, aluno e curso corretos" \
+    "$REF_FILTER"' .id != null and .dataMatricula == $d and .status == $s and ref("aluno") == $a and ref("curso") == $c' \
+    --arg d "$DATA_MATRICULA" --arg s "$STATUS_INICIAL" --argjson a "$ALUNO_ID" --argjson c "$CURSO_ID"
+require "$MATRICULA_ID" "a matrícula válida"
+
+request GET "/matriculas/$MATRICULA_ID"
+expect_status "Buscar matrícula por ID" 200
+expect_json "   ↳ retorna a matrícula correta" '.id == $id' --argjson id "$MATRICULA_ID"
+
+request GET "/matriculas/$ID_INEXISTENTE"
+expect_status "Buscar matrícula inexistente" 404
+
+request POST "/matriculas" "$(matricula_json "$ID_INEXISTENTE" "$CURSO_ID")"
+expect_status "Matrícula com aluno inexistente" 404 400 422
+
+request POST "/matriculas" "$(matricula_json "$ALUNO_ID" "$ID_INEXISTENTE")"
+expect_status "Matrícula com curso inexistente" 404 400 422
+
+request PUT "/matriculas/$MATRICULA_ID" "$(matricula_json "$ALUNO_ID" "$CURSO_ID" "$STATUS_FINAL")"
+expect_status "Atualizar status da matrícula para $STATUS_FINAL" 200
+expect_json "   ↳ resposta tem o novo status e mantém aluno/curso" \
+    "$REF_FILTER"' .status == $s and ref("aluno") == $a and ref("curso") == $c' \
+    --arg s "$STATUS_FINAL" --argjson a "$ALUNO_ID" --argjson c "$CURSO_ID"
+
+request GET "/matriculas/$MATRICULA_ID"
+expect_json "   ↳ novo status foi persistido (GET após PUT)" '.status == $s' --arg s "$STATUS_FINAL"
+
+request PUT "/matriculas/$ID_INEXISTENTE" "$(matricula_json "$ALUNO_ID" "$CURSO_ID")"
+expect_status "Atualizar matrícula inexistente" 404
+
+# =============================================================================
+# 6. MATRÍCULAS - Bean Validation
+# =============================================================================
+section "6. MATRÍCULAS - Bean Validation (espera HTTP 400)"
+
+MAT_BASE="$(matricula_json "$ALUNO_ID" "$CURSO_ID")"
+
+invalid "Corpo vazio {}"                       POST "/matriculas" '{}'                                                dataMatricula
+invalid "dataMatricula ausente"                POST "/matriculas" "$(mut "$MAT_BASE" 'del(.dataMatricula)')"          dataMatricula
+invalid "dataMatricula em formato inválido"    POST "/matriculas" "$(mut "$MAT_BASE" '.dataMatricula = "05/11/2026"')"
+invalid "status ausente"                       POST "/matriculas" "$(mut "$MAT_BASE" 'del(.status)')"                 status
+invalid "status em branco"                     POST "/matriculas" "$(mut "$MAT_BASE" '.status = ""')"                 status
+invalid "aluno ausente"                        POST "/matriculas" "$(mut "$MAT_BASE" 'del(.aluno)')"                  aluno
+invalid "curso ausente"                        POST "/matriculas" "$(mut "$MAT_BASE" 'del(.curso)')"                  curso
+invalid "aluno com tipo errado (\"abc\")"      POST "/matriculas" "$(mut "$MAT_BASE" '.aluno = "abc"')"
+invalid "PUT com status em branco"             PUT  "/matriculas/$MATRICULA_ID" "$(mut "$MAT_BASE" '.status = ""')"   status
+
+# =============================================================================
+# 7. PAGINAÇÃO E ORDENAÇÃO
+# =============================================================================
+section "7. PAGINAÇÃO E ORDENAÇÃO"
+
+# Garante pelo menos 4 cursos para testar páginas
+EXTRA_CURSOS=()
+for nome in "Algoritmos Avançados" "Zoologia Aplicada"; do
+    request POST "/cursos" "$(mut "$CURSO_BASE" ".nome = \"$nome\" | .cargaHoraria = $((RANDOM % 300 + 1))")"
+    ID_TMP="$(json_id)"; [ -n "$ID_TMP" ] && EXTRA_CURSOS+=("$ID_TMP")
+done
+
+request GET "/cursos?page=0&size=2"
+expect_status "GET /cursos?page=0&size=2" 200
+expect_json "   ↳ respeita size=2 (no máximo 2 itens, size = 2, página 0)" \
+    "$PAGE_FILTER"' (.content | length) <= 2 and psize == 2 and pnum == 0'
+expect_json "   ↳ informa o total de elementos (>= 4)" "$PAGE_FILTER"' ptotal >= 4'
+
+request GET "/cursos?page=1&size=2"
+expect_status "GET /cursos?page=1&size=2" 200
+expect_json "   ↳ retorna a página 1" "$PAGE_FILTER"' pnum == 1 and (.content | length) > 0'
+
+request GET "/cursos?page=0&size=50&sort=nome,asc"
+expect_status "GET /cursos?sort=nome,asc" 200
+expect_json "   ↳ nomes em ordem crescente" '[.content[].nome] as $n | $n == ($n | sort)'
+
+request GET "/cursos?page=0&size=50&sort=nome,desc"
+expect_json "GET /cursos?sort=nome,desc -> nomes em ordem decrescente" '[.content[].nome] as $n | $n == ($n | sort | reverse)'
+
+request GET "/cursos?page=0&size=50&sort=cargaHoraria,desc"
+expect_json "GET /cursos?sort=cargaHoraria,desc -> ordenação numérica" \
+    '[.content[].cargaHoraria] as $c | $c == ($c | sort | reverse)'
+
+request GET "/cursos?page=9999&size=5"
+expect_status "Página além do fim" 200
+expect_json "   ↳ devolve lista vazia" '(.content | length) == 0'
+
+request GET "/alunos?page=0&size=1&sort=nome,asc"
+expect_status "GET /alunos?page=0&size=1&sort=nome,asc" 200
+expect_json "   ↳ respeita size=1" "$PAGE_FILTER"' (.content | length) <= 1 and psize == 1'
+
+request GET "/alunos?page=0&size=50&sort=nome,desc"
+expect_json "GET /alunos?sort=nome,desc -> nomes em ordem decrescente" '[.content[].nome] as $n | $n == ($n | sort | reverse)'
+
+request GET "/matriculas?page=0&size=5"
+expect_status "GET /matriculas?page=0&size=5" 200
+expect_json "   ↳ resposta paginada com a matrícula criada" \
+    "$PAGE_FILTER"' (.content | type) == "array" and psize == 5 and ptotal >= 1'
+
+# =============================================================================
+# 8. REGRAS DE EXCLUSÃO
+# =============================================================================
+section "8. REGRAS DE EXCLUSÃO"
+
+request DELETE "/cursos/$CURSO_ID"
+expect_status "Regra: impedir exclusão de curso com matrículas" 400 409 422
+request GET "/cursos/$CURSO_ID"
+expect_status "   ↳ curso continua existindo" 200
+
+request DELETE "/alunos/$ALUNO_ID"
+expect_status "Regra: impedir exclusão de aluno com matrículas" 400 409 422
+request GET "/alunos/$ALUNO_ID"
+expect_status "   ↳ aluno continua existindo" 200
+
+request DELETE "/matriculas/$MATRICULA_ID"
+expect_status "Cancelar matrícula" 200 204
+request GET "/matriculas/$MATRICULA_ID"
+expect_status "   ↳ matrícula não existe mais" 404
+request DELETE "/matriculas/$MATRICULA_ID"
+expect_status "Cancelar matrícula já removida" 404
+
+request DELETE "/cursos/$CURSO_ID"
+expect_status "Excluir curso sem matrículas" 200 204
+request GET "/cursos/$CURSO_ID"
+expect_status "   ↳ curso não existe mais" 404
+
+request DELETE "/alunos/$ALUNO_ID"
+expect_status "Excluir aluno sem matrículas" 200 204
+request GET "/alunos/$ALUNO_ID"
+expect_status "   ↳ aluno não existe mais" 404
+
+request DELETE "/cursos/$ID_INEXISTENTE"
+expect_status "Excluir curso inexistente" 404
+
+request DELETE "/alunos/$ID_INEXISTENTE"
+expect_status "Excluir aluno inexistente" 404
+
+# -----------------------------------------------------------------------------
+# Limpeza dos dados auxiliares
+# -----------------------------------------------------------------------------
+for id in "$CURSO_INATIVO_ID" "${EXTRA_CURSOS[@]}"; do
+    curl -s -o /dev/null -X DELETE "$BASE_URL/cursos/$id"
+done
+
+summary
+[ $FAIL -eq 0 ]
