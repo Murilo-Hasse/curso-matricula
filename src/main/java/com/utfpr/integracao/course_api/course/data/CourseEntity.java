@@ -1,12 +1,7 @@
 package com.utfpr.integracao.course_api.course.data;
 
-import jakarta.persistence.CheckConstraint;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.utfpr.integracao.course_api.registration.data.Registration;
+import jakarta.persistence.*;
 import org.hibernate.annotations.Check;
 
 import lombok.AllArgsConstructor;
@@ -14,6 +9,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
 
 @Setter
 @Getter
@@ -49,4 +46,7 @@ public class CourseEntity {
 
     @Column(name = "active", nullable = false)
     private Boolean ativo = false;
+
+    @OneToMany(mappedBy = "curso")
+    private List<Registration> matriculas;
 }

@@ -1,10 +1,10 @@
 package com.utfpr.integracao.course_api.student.data;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.utfpr.integracao.course_api.registration.data.Registration;
+import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 
 @Entity
 @Getter
@@ -24,4 +24,7 @@ public class Student {
     private Integer idade;
 
     private String telefone;
+
+    @OneToMany(mappedBy = "aluno")
+    private List<Registration> matriculas;
 }

@@ -2,6 +2,8 @@ package com.utfpr.integracao.course_api.registration.api;
 import java.net.URI;
 import java.util.List;
 
+import com.utfpr.integracao.course_api.registration.api.dto.RegistrationRequestDto;
+import com.utfpr.integracao.course_api.registration.api.dto.RegistrationResponseDto;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
-@RequestMapping("/registrations")
+@RequestMapping("/matriculas")
 public class RegistrationController {
 
     @GetMapping
