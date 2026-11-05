@@ -11,10 +11,12 @@ import com.utfpr.integracao.course_api.registration.api.dto.RegistrationResponse
 import com.utfpr.integracao.course_api.registration.api.mapper.RegistrationApiMapper;
 import com.utfpr.integracao.course_api.registration.data.Registration;
 import com.utfpr.integracao.course_api.registration.domain.RegistrationService;
+import com.utfpr.integracao.course_api.student.api.dto.StudentResponseDto;
 import com.utfpr.integracao.course_api.student.data.Student;
 import com.utfpr.integracao.course_api.student.domain.StudentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,15 +40,16 @@ public class RegistrationController {
     private final StudentService studentService;
 
     @GetMapping
-    public ResponseEntity<List<RegistrationResponseDto>> findAll(Pageable pageable) {
+    public ResponseEntity<Page<RegistrationResponseDto>> findAll(Pageable pageable) {
+        Page<RegistrationResponseDto> allRegistrations = mapper.toDto(service.getAll(pageable));
 
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(allRegistrations);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<RegistrationResponseDto> findById(@PathVariable Long id) {
 
-        return ResponseEntity.ok();
+        return ResponseEntity.ok(this.mapper.toDto(this.service.getById(id)));
     }
 
     @PostMapping
@@ -67,7 +70,7 @@ public class RegistrationController {
 
     @PutMapping("/{id}")
     public ResponseEntity<RegistrationResponseDto> update(@PathVariable Long id,
-                                               @RequestBody RegistrationRequestDto registrationRequestDto) {
+                                               @Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()

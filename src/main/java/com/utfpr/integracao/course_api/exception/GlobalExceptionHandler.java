@@ -31,6 +31,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
+    @ExceptionHandler(MatriculaNaoEncontradaException.class)
+    public ResponseEntity<ErroGenerico> tratarMatriculaNaoEncontrada(MatriculaNaoEncontradaException ex,
+                                                                 HttpServletRequest request) {
+
+        ErroGenerico error = new ErroGenerico("Curso não encontrado", HttpStatus.NOT_FOUND.value(),
+                ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
     @ExceptionHandler(CourseNotFound.class)
     public ResponseEntity<ErroGenerico> tratarMatriculaEmCursoInativo(MatriculaEmCursoInativoException ex,
                                                                       HttpServletRequest request) {
