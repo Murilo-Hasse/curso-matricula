@@ -5,11 +5,14 @@ import com.utfpr.integracao.course_api.exception.ExclusaoAlunoComMatriculaExcept
 import com.utfpr.integracao.course_api.student.data.StudentMapper;
 import com.utfpr.integracao.course_api.student.data.StudentRepository;
 import lombok.RequiredArgsConstructor;
+
+import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class StudentService {
 

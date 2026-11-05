@@ -2,7 +2,7 @@ package com.utfpr.integracao.course_api.student.domain;
 
 import java.util.List;
 
-import com.utfpr.integracao.course_api.registration.data.Registration;
+import com.utfpr.integracao.course_api.registration.data.RegistrationEntity;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -23,5 +23,5 @@ public class Student {
 
     private String telefone;
 
-    private List<Registration> matriculas;
+    private List<RegistrationEntity> matriculas;
 }

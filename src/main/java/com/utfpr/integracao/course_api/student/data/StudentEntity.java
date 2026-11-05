@@ -2,7 +2,7 @@ package com.utfpr.integracao.course_api.student.data;
 
 import java.util.List;
 
-import com.utfpr.integracao.course_api.registration.data.Registration;
+import com.utfpr.integracao.course_api.registration.data.RegistrationEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -40,5 +40,5 @@ public class StudentEntity {
     private String telefone;
 
     @OneToMany(mappedBy = "aluno")
-    private List<Registration> matriculas;
+    private List<RegistrationEntity> matriculas;
 }

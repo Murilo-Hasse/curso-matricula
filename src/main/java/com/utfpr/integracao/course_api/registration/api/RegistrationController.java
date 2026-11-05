@@ -2,16 +2,11 @@ package com.utfpr.integracao.course_api.registration.api;
 
 import java.net.URI;
 
-import com.utfpr.integracao.course_api.course.data.CourseEntity;
-import com.utfpr.integracao.course_api.course.data.CourseMapper;
-import com.utfpr.integracao.course_api.course.domain.CourseService;
 import com.utfpr.integracao.course_api.registration.api.dto.RegistrationRequestDto;
 import com.utfpr.integracao.course_api.registration.api.dto.RegistrationResponseDto;
-import com.utfpr.integracao.course_api.registration.api.mapper.RegistrationApiMapper;
-import com.utfpr.integracao.course_api.registration.data.Registration;
+import com.utfpr.integracao.course_api.registration.api.mapper.RegistrationMapper;
+import com.utfpr.integracao.course_api.registration.domain.Registration;
 import com.utfpr.integracao.course_api.registration.domain.RegistrationService;
-import com.utfpr.integracao.course_api.student.domain.Student;
-import com.utfpr.integracao.course_api.student.domain.StudentService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,14 +29,11 @@ import lombok.RequiredArgsConstructor;
 public class RegistrationController {
 
     private final RegistrationService service;
-    private final RegistrationApiMapper mapper;
-    private final CourseService courseService;
-    private final StudentService studentService;
 
     @GetMapping
     public ResponseEntity<Page<RegistrationResponseDto>> findAll(Pageable pageable) {
 
-        Page<RegistrationResponseDto> allRegistrations = mapper.toDto(service.getAll(pageable));
+        Page<RegistrationResponseDto> allRegistrations = RegistrationMapper.toDto(service.getAll(pageable));
 
         return ResponseEntity.ok(allRegistrations);
     }
@@ -49,17 +41,14 @@ public class RegistrationController {
     @GetMapping("/{id}")
     public ResponseEntity<RegistrationResponseDto> findById(@PathVariable Long id) {
 
-        return ResponseEntity.ok(this.mapper.toDto(this.service.getById(id)));
+        return ResponseEntity.ok(RegistrationMapper.toDto(service.getById(id)));
     }
 
     @PostMapping
     public ResponseEntity<RegistrationResponseDto> save(@Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
 
-        Student student = studentService.getById(registrationRequestDto.aluno());
-        CourseEntity course = CourseMapper.toEntity(courseService.getById(registrationRequestDto.curso()));
-
-        Registration createdRegistration = service.create(mapper.toEntity(registrationRequestDto, student, course));
-        RegistrationResponseDto responseDto = mapper.toDto(createdRegistration);
+        Registration createdRegistrationEntity = service.save(RegistrationMapper.toDomain(registrationRequestDto, null, null));
+        RegistrationResponseDto responseDto = RegistrationMapper.toDto(createdRegistrationEntity);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -69,20 +58,16 @@ public class RegistrationController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<RegistrationResponseDto> update(@PathVariable Long id,
-                                                          @Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
+    public ResponseEntity<RegistrationResponseDto> update(@PathVariable Long id, @Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
 
-        Student student = studentService.getById(registrationRequestDto.aluno());
-        CourseEntity course = CourseMapper.toEntity(courseService.getById(registrationRequestDto.curso()));
-
-        Registration updatedRegistration = service.updateById(id, mapper.toEntity(registrationRequestDto, student, course));
+        Registration updatedRegistration = service.updateById(id, RegistrationMapper.toDomain(registrationRequestDto, null, null));
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(updatedRegistration.getId())
                 .toUri();
-        return ResponseEntity.created(location).body(mapper.toDto(updatedRegistration));
+        return ResponseEntity.created(location).body(RegistrationMapper.toDto(updatedRegistration));
     }
 
     @DeleteMapping("/{id}")
