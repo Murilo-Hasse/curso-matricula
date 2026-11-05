@@ -1,18 +1,9 @@
 package com.utfpr.integracao.course_api.registration.domain;
 
-import com.utfpr.integracao.course_api.course.data.CourseRepository;
-import com.utfpr.integracao.course_api.exception.AlunoNaoEncontradoException;
 import com.utfpr.integracao.course_api.exception.MatriculaEmCursoInativoException;
-import com.utfpr.integracao.course_api.exception.MatriculaNaoEncontradaException;
-import com.utfpr.integracao.course_api.registration.api.dto.RegistrationRequestDto;
-import com.utfpr.integracao.course_api.registration.api.dto.RegistrationResponseDto;
-import com.utfpr.integracao.course_api.registration.api.mapper.RegistrationApiMapper;
 import com.utfpr.integracao.course_api.registration.data.Registration;
 import com.utfpr.integracao.course_api.registration.repository.RegistrationRepository;
-import com.utfpr.integracao.course_api.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,10 +12,6 @@ public class RegistrationService {
 
     private final RegistrationRepository repository;
 
-    public Page<Registration> getAll(Pageable pageable) {
-        return repository.findAll(pageable);
-    }
-
     public Registration create(Registration entity) {
 
         if(entity.getCurso().getAtivo()) {
@@ -32,12 +19,6 @@ public class RegistrationService {
         }
         //matricula < 16 anos n é necessário porque nem é possível criar aluno menor que 16
 
-        return repository.save(entity);
-    }
-
-    public Registration getById(Long id) {
-
-        return this.repository.findById(id)
-                .orElseThrow(() -> new MatriculaNaoEncontradaException("Não foi encontrado uma matricula com o ID " + id));
+        return this.repository.save(entity);
     }
 }

@@ -22,7 +22,13 @@ public class CourseService {
         return CourseMapper.toDomain(repository.save(CourseMapper.toEntity(course)));
     }
 
-    public Course findById(Long id) {
+    /***
+     *
+     * @param id from database
+     * @return Course domain object
+     * @throws CourseNotFound exeption when course not found
+     */
+    public Course getById(Long id) {
 
         return repository.findById(id)
                 .map(CourseMapper::toDomain)
