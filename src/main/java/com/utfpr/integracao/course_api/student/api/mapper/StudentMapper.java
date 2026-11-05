@@ -2,14 +2,12 @@ package com.utfpr.integracao.course_api.student.api.mapper;
 
 import com.utfpr.integracao.course_api.student.api.dto.StudentRequestDto;
 import com.utfpr.integracao.course_api.student.api.dto.StudentResponseDto;
-import com.utfpr.integracao.course_api.student.data.Student;
+import com.utfpr.integracao.course_api.student.domain.Student;
 import org.springframework.data.domain.Page;
-import org.springframework.stereotype.Component;
 
-@Component
-public class StudentApiMapper {
+public class StudentMapper {
 
-    public Student toEntity(StudentRequestDto dto) {
+    public static Student toDomain(StudentRequestDto dto) {
 
         return Student.builder()
                 .nome(dto.nome())
@@ -19,7 +17,7 @@ public class StudentApiMapper {
                 .build();
     }
 
-    public StudentResponseDto toDto(Student student) {
+    public static StudentResponseDto toDto(Student student) {
 
         return new StudentResponseDto(
                 student.getId(),
@@ -30,8 +28,8 @@ public class StudentApiMapper {
         );
     }
 
-    public Page<StudentResponseDto> toDto(Page<Student> domain) {
+    public static Page<StudentResponseDto> toDto(Page<Student> domain) {
 
-        return domain.map(this::toDto);
+        return domain.map(StudentMapper::toDto);
     }
 }

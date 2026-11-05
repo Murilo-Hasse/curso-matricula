@@ -1,7 +1,7 @@
 package com.utfpr.integracao.course_api.student.domain;
 
 import com.utfpr.integracao.course_api.exception.AlunoNaoEncontradoException;
-import com.utfpr.integracao.course_api.student.data.Student;
+import com.utfpr.integracao.course_api.student.data.StudentMapper;
 import com.utfpr.integracao.course_api.student.data.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -14,36 +14,33 @@ public class StudentService {
 
     private final StudentRepository repository;
 
-    public Page<Student> getAll(Pageable pageable) {
+    public Page<Student> findAll(Pageable pageable) {
 
-        return this.repository.findAll(pageable);
+        return StudentMapper.toDomain(repository.findAll(pageable));
     }
 
     public Student getById(Long id) {
 
-        return this.repository.findById(id)
-                .orElseThrow(() -> new AlunoNaoEncontradoException("Não foi encontrado um aluno com o ID " + id));
+        return repository.findById(id)
+                .map(StudentMapper::toDomain)
+                .orElseThrow( () -> new AlunoNaoEncontradoException(
+                        String.format( "Não foi encontrado um aluno com o ID %s", id)));
     }
 
     public Student create(Student entity) {
 
-        return this.repository.save(entity);
+        return StudentMapper.toDomain(repository.save(StudentMapper.toEntity(entity)));
     }
 
     public void deleteById(Long id) {
         Student student = this.getById(id); // Para ter validacao
 
-        repository.delete(student);
+        repository.delete(StudentMapper.toEntity(student));
     }
 
     public Student updateById(Long id, Student studentUpdObj) {
-        Student student = this.getById(id); //Validacao + pegar o que está no banco
+        getById(id); //Validacao + pegar o que está no banco
 
-        student.setNome(studentUpdObj.getNome());
-        student.setEmail(studentUpdObj.getEmail());
-        student.setIdade(studentUpdObj.getIdade());
-        student.setTelefone(studentUpdObj.getTelefone());
-
-        return this.repository.save(student);
+        return StudentMapper.toDomain(repository.save(StudentMapper.toEntity(studentUpdObj)));
     }
 }
