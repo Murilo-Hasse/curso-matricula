@@ -7,8 +7,7 @@ public class CourseMapper {
 
     public static CourseResponseDto toResponseDto(Course course) {
 
-        return new CourseResponseDto(course.getId(), course.getNome(), course.getCargaHoraria(), course.getCategoria(),
-                course.getAtivo());
+        return new CourseResponseDto(course.getId(), course.getNome(), course.getCargaHoraria(), course.getCategoria(), course.getAtivo());
     }
 
     public static Course toDomain(CourseRequestDto requestDto) {
