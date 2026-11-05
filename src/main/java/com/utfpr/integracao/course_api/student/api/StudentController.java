@@ -33,7 +33,7 @@ public class StudentController {
     @GetMapping("/{id}")
     public ResponseEntity<StudentResponseDto> findById(@PathVariable Long id) {
 
-        return ResponseEntity.ok(this.mapper.toDto(this.service.getFromId(id)));
+        return ResponseEntity.ok(this.mapper.toDto(this.service.getById(id)));
     }
 
     @PostMapping

@@ -35,7 +35,7 @@ public class CourseController {
     @GetMapping("/{id}")
     public ResponseEntity<CourseResponseDto> findById(@PathVariable Long id) {
 
-        return ResponseEntity.ok(CourseMapper.toResponseDto(service.findById(id)));
+        return ResponseEntity.ok(CourseMapper.toResponseDto(service.getById(id)));
     }
 
     @PostMapping

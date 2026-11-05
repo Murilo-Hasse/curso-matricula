@@ -4,7 +4,6 @@ import java.util.List;
 
 import com.utfpr.integracao.course_api.course.data.CourseEntity;
 import com.utfpr.integracao.course_api.course.data.CourseMapper;
-import com.utfpr.integracao.course_api.course.domain.Course;
 import com.utfpr.integracao.course_api.course.domain.CourseService;
 import com.utfpr.integracao.course_api.registration.api.dto.RegistrationRequestDto;
 import com.utfpr.integracao.course_api.registration.api.dto.RegistrationResponseDto;
@@ -52,8 +51,8 @@ public class RegistrationController {
     @PostMapping
     public ResponseEntity<RegistrationResponseDto> save(@Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
 
-        Student student = studentService.getFromId(registrationRequestDto.aluno());
-        CourseEntity course = CourseMapper.toEntity(courseService.findById(registrationRequestDto.curso()));
+        Student student = studentService.getById(registrationRequestDto.aluno());
+        CourseEntity course = CourseMapper.toEntity(courseService.getById(registrationRequestDto.curso()));
 
         Registration createdRegistration = service.create(mapper.toEntity(registrationRequestDto, student, course));
         RegistrationResponseDto responseDto = mapper.toDto(createdRegistration);
