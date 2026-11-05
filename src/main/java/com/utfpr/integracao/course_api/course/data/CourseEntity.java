@@ -1,11 +1,15 @@
 package com.utfpr.integracao.course_api.course.data;
 
+import java.util.List;
+
+import com.utfpr.integracao.course_api.registration.data.RegistrationEntity;
 import jakarta.persistence.CheckConstraint;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 import lombok.AllArgsConstructor;
@@ -14,13 +18,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Setter
-@Getter
-@Builder
 @Entity
-@Table(name = "courses")
+@Getter
+@Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name = "courses")
 public class CourseEntity {
 
     @Id
@@ -48,4 +52,7 @@ public class CourseEntity {
 
     @Column(name = "active", nullable = false)
     private Boolean ativo = false;
+
+    @OneToMany(mappedBy = "curso")
+    private List<RegistrationEntity> matriculas;
 }

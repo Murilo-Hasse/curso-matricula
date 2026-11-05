@@ -21,8 +21,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
-    @ExceptionHandler(CourseNotFound.class)
-    public ResponseEntity<ErroGenerico> tratarCursoNaoEncontrado(CourseNotFound ex,
+    @ExceptionHandler(CursoNaoEncontradoException.class)
+    public ResponseEntity<ErroGenerico> tratarCursoNaoEncontrado(CursoNaoEncontradoException ex,
                                                                  HttpServletRequest request) {
 
         ErroGenerico error = new ErroGenerico("Curso não encontrado", HttpStatus.NOT_FOUND.value(),
@@ -35,7 +35,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErroGenerico> tratarMatriculaNaoEncontrada(MatriculaNaoEncontradaException ex,
                                                                  HttpServletRequest request) {
 
-        ErroGenerico error = new ErroGenerico("Curso não encontrado", HttpStatus.NOT_FOUND.value(),
+        ErroGenerico error = new ErroGenerico("Matrícula não encontrada", HttpStatus.NOT_FOUND.value(),
                 ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ExclusaoAlunoComMatriculaException.class)
-    public ResponseEntity<ErroGenerico> tratarMatriculaEmCursoInativo(ExclusaoAlunoComMatriculaException ex,
+    public ResponseEntity<ErroGenerico> tratarExclusaoAlunoComMatricula(ExclusaoAlunoComMatriculaException ex,
                                                                       HttpServletRequest request) {
 
         ErroGenerico error = new ErroGenerico("Não é possível deletar um usuário com matriculas ativas.", HttpStatus.BAD_REQUEST.value(),
@@ -62,7 +62,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ExclusaoCursoComMatriculaException.class)
-    public ResponseEntity<ErroGenerico> tratarMatriculaEmCursoInativo(ExclusaoCursoComMatriculaException ex,
+    public ResponseEntity<ErroGenerico> tratarExclusaoCursoComMatricula(ExclusaoCursoComMatriculaException ex,
                                                                       HttpServletRequest request) {
 
         ErroGenerico error = new ErroGenerico("Não é possível deletar um curso com matriculas de alunos ativas.", HttpStatus.BAD_REQUEST.value(),

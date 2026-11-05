@@ -1,4 +1,4 @@
-package com.utfpr.integracao.course_api.student.api.dto;
+package com.utfpr.integracao.course_api.student.api;
 
 public record StudentResponseDto(
         Long id,

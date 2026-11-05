@@ -2,10 +2,6 @@ package com.utfpr.integracao.course_api.registration.api;
 
 import java.net.URI;
 
-import com.utfpr.integracao.course_api.registration.api.dto.RegistrationRequestDto;
-import com.utfpr.integracao.course_api.registration.api.dto.RegistrationResponseDto;
-import com.utfpr.integracao.course_api.registration.api.mapper.RegistrationMapper;
-import com.utfpr.integracao.course_api.registration.domain.Registration;
 import com.utfpr.integracao.course_api.registration.domain.RegistrationService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -33,47 +29,38 @@ public class RegistrationController {
     @GetMapping
     public ResponseEntity<Page<RegistrationResponseDto>> findAll(Pageable pageable) {
 
-        Page<RegistrationResponseDto> allRegistrations = RegistrationMapper.toDto(service.getAll(pageable));
-
-        return ResponseEntity.ok(allRegistrations);
+        return ResponseEntity.ok(RegistrationMapper.toResponseDto(service.findAll(pageable)));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<RegistrationResponseDto> findById(@PathVariable Long id) {
 
-        return ResponseEntity.ok(RegistrationMapper.toDto(service.getById(id)));
+        return ResponseEntity.ok(RegistrationMapper.toResponseDto(service.getById(id)));
     }
 
     @PostMapping
     public ResponseEntity<RegistrationResponseDto> save(@Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
 
-        Registration createdRegistrationEntity = service.save(RegistrationMapper.toDomain(registrationRequestDto, null, null));
-        RegistrationResponseDto responseDto = RegistrationMapper.toDto(createdRegistrationEntity);
+        var response = RegistrationMapper.toResponseDto(service.save(RegistrationMapper.toDomain(registrationRequestDto)));
+
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(responseDto.id())
+                .buildAndExpand(response.id())
                 .toUri();
-        return ResponseEntity.created(location).body(responseDto);
+        return ResponseEntity.created(location).body(response);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<RegistrationResponseDto> update(@PathVariable Long id, @Valid @RequestBody RegistrationRequestDto registrationRequestDto) {
 
-        Registration updatedRegistration = service.updateById(id, RegistrationMapper.toDomain(registrationRequestDto, null, null));
-
-        URI location = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(updatedRegistration.getId())
-                .toUri();
-        return ResponseEntity.created(location).body(RegistrationMapper.toDto(updatedRegistration));
+        return ResponseEntity.ok(RegistrationMapper.toResponseDto(service.updateById(id, RegistrationMapper.toDomain(registrationRequestDto, id))));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
 
-        this.service.deleteById(id);
+        service.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 }

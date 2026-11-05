@@ -19,11 +19,20 @@ public class RegistrationService {
     private final RegistrationRepository repository;
 
     private final CourseService courseService;
+
     private final StudentService studentService;
 
-    public Page<Registration> getAll(Pageable pageable) {
+    public Page<Registration> findAll(Pageable pageable) {
 
         return RegistrationMapper.toDomain(repository.findAll(pageable));
+    }
+
+    public Registration getById(Long id) {
+
+        return repository.findById(id)
+                .map(RegistrationMapper::toDomain)
+                .orElseThrow(() -> new MatriculaNaoEncontradaException(
+                        String.format("Matrícula com id %s não foi encontrada", id)));
     }
 
     public Registration save(Registration registration) {
@@ -31,7 +40,7 @@ public class RegistrationService {
         registration.setCurso(courseService.getById(registration.getCurso().getId()));
         registration.setAluno(studentService.getById(registration.getAluno().getId()));
 
-        if (registration.getCurso().getAtivo()) {
+        if (!registration.getCurso().getAtivo()) {
             throw new MatriculaEmCursoInativoException("Não é possível se matricular em um curso inativo");
         }
         //matricula < 16 anos n é necessário porque nem é possível criar aluno menor que 16
@@ -39,11 +48,11 @@ public class RegistrationService {
         return RegistrationMapper.toDomain(repository.save(RegistrationMapper.toEntity(registration)));
     }
 
-    public Registration getById(Long id) {
+    public Registration updateById(Long id, Registration registrationUpdObj) {
 
-        return repository.findById(id)
-                .map(RegistrationMapper::toDomain)
-                .orElseThrow(() -> new MatriculaNaoEncontradaException("Não foi encontrado uma matricula com o ID " + id));
+        validateById(id); //Validacao + pegar o que está no banco
+
+        return save(registrationUpdObj);
     }
 
     public void deleteById(Long id) {
@@ -51,14 +60,6 @@ public class RegistrationService {
         validateById(id); // Para ter validacao
 
         repository.deleteById(id);
-    }
-
-    public Registration updateById(Long id, Registration registrationEntityUpdateObj) {
-
-        validateById(id); //Validacao + pegar o que está no banco;
-
-        registrationEntityUpdateObj.setId(id);
-        return save(registrationEntityUpdateObj);
     }
 
     private void validateById(Long id) {

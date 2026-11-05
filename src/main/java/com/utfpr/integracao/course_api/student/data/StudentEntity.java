@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,24 +20,26 @@ import lombok.Setter;
 @Entity
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Table(name = "students")
 public class StudentEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "nome", nullable = false)
     private String nome;
 
-    @Column(nullable = false)
+    @Column(name = "email", nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column(name = "idade", nullable = false)
     private Integer idade;
 
+    @Column(name = "telefone")
     private String telefone;
 
     @OneToMany(mappedBy = "aluno")

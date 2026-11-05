@@ -52,15 +52,15 @@ public class CourseController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CourseResponseDto> update(@PathVariable Long id, @RequestBody CourseRequestDto courseRequestDto) {
+    public ResponseEntity<CourseResponseDto> update(@PathVariable Long id, @Valid @RequestBody CourseRequestDto courseRequestDto) {
 
-        return ResponseEntity.ok(CourseMapper.toResponseDto(service.save(CourseMapper.toDomain(courseRequestDto, id))));
+        return ResponseEntity.ok(CourseMapper.toResponseDto(service.updateById(id, CourseMapper.toDomain(courseRequestDto, id))));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
 
-        service.delete(id);
+        service.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 }

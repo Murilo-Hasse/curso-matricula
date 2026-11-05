@@ -7,6 +7,7 @@ public class StudentMapper {
 
     public static StudentEntity toEntity(Student student) {
         return StudentEntity.builder()
+                .id(student.getId())
                 .nome(student.getNome())
                 .email(student.getEmail())
                 .idade(student.getIdade())
